@@ -1,21 +1,25 @@
 #####################################
+# Example: Build-Once-Deploy-Many   #
 # Deployment Pipeline for Dummy API #
 #####################################
 #
-# NOTE: This example uses the build-once-deploy-many pattern
-# Package is built ONCE and the SAME package is deployed to all environments
-# For details, see: ci-templates/azuredevops/docs/BUILD_ONCE_PATTERN.md
+# This example demonstrates the CORRECT build-once-deploy-many pattern:
+# - Package is built ONCE in Build_Package stage
+# - SAME package ID is deployed to QA, UAT, and Prod
+# - Includes approval gates for UAT and Production
+#
+# Compare with dummy-api.yaml which uses the OLD pattern (builds at every stage)
 #
 
 parameters:
   - name: packageVersion
-    displayName: Package Version, leave 0 for a new deployment OR put the Build Number to reuse an existing package. For instance put dummy-api.20230111.1.BUILD
+    displayName: Package Version (0 for auto-generated, or Build Number to reuse existing)
     type: string
     default: 0
   - name: notes
-    displayName: Notes
+    displayName: Deployment Notes
     type: string
-    default: 'Dummy API Bundle'
+    default: 'Dummy API Bundle - Build Once Pattern'
   - name: deployToQA
     displayName: Deploy to QA
     type: boolean
@@ -29,7 +33,7 @@ parameters:
     type: boolean
     default: false
   - name: branchName
-    displayName: Branch Name
+    displayName: Boomi Branch Name (optional)
     type: string
     default: 'master'
 
@@ -41,17 +45,27 @@ pool:
   demands:
     - agent.os -equals Linux
 
+# Use the NEW build-once-deploy-many template with approval gates
 extends:
   template: templates/base_build_approval_deploy.yaml
   parameters:
     packageVersion: ${{ parameters.packageVersion }}
     packageName: 'dummy-api'
+    
+    # Main components to deploy (package built ONCE from these)
     componentIds: '2d72456d-baa8-4782-beb6-e18511bf9feb,ea579547-3b49-4881-9ed6-156d27ac38db'
+    
+    # Test components (these are created at each stage, not part of the main package)
     test_componentIds: '4fd96edb-18c6-4436-8444-be99c4e91b67'
+    
     notes: ${{ parameters.notes }}
     deployToQA: ${{ parameters.deployToQA }}
     deployToUAT: ${{ parameters.deployToUAT }}
     deployToProd: ${{ parameters.deployToProd }}
+    
+    # API Testing
     postmanCollection: 'dummy-api-basic-postman.json'
     sleepInMinutes: 1
+    
+    # Boomi branch/merge support
     branchName: ${{ parameters.branchName }}

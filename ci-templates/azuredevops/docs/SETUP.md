@@ -82,14 +82,37 @@ steps:
 
 ### 4. Available Templates
 
+#### Build-Once-Deploy-Many Templates (Recommended for Production)
+
 | Template | Purpose |
 |----------|---------|
-| `deploy_packages.yaml` | Deploy packaged components to an environment |
-| `undeploy_packages.yaml` | Undeploy packages from an environment |
+| `base_build_approval_deploy.yaml` | ✅ **RECOMMENDED** - Complete pipeline with build-once pattern and approval gates |
+| `create_packages.yaml` | Build package once and export packageId |
+| `deploy_packages_byId.yaml` | Deploy existing package by ID (does NOT create new package) |
+| `undeploy_packages_byId.yaml` | Undeploy package by ID |
+
+> **📖 See [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) for detailed guide on build-once-deploy-many pattern**
+
+#### Quick Deploy Templates (Recommended for Development and QA)
+
+| Template | Purpose | Note |
+|----------|---------|------|
+| `deploy_packages.yaml` | Deploy packaged components | Creates NEW package then deploys |
+| `undeploy_packages.yaml` | Undeploy packages from environment | By component ID |
+
+#### Utility Templates
+
+| Template | Purpose |
+|----------|---------|
+| `get_components.yaml` | Retrieve component IDs from Boomi |
 | `execute_processes.yaml` | Execute processes on an atom |
 | `validate_processes.yaml` | Validate process execution results |
 | `call_api.yaml` | Run Postman collections for API testing |
-| `custom_deploy_pipeline.yaml` | Full multi-stage pipeline (QA→UAT→Prod) |
+| `call_secretmanager.yaml` | Retrieve secrets from Azure Key Vault or AWS Secrets Manager |
+| `retrieve_extensions.yaml` | Retrieve environment extensions |
+| `update_extensions.yaml` | Update environment extensions |
+| `clean_up.yaml` | Cleanup temporary files |
+
 
 ### 5. Triggering a Deployment
 
@@ -157,362 +180,80 @@ Base64(BOOMI_ACCOUNT.username:api_token)
 
 ---
 
-## Advanced: Using the Custom Deployment Pipeline
+## Advanced: Build-Once-Deploy-Many Pattern
 
-The `custom_deploy_pipeline.yaml` template provides a **production-ready, multi-stage deployment pipeline** with automated testing and API validation.
+The **recommended approach** for production deployments is the build-once-deploy-many pattern using `base_build_approval_deploy.yaml`.
 
-### Pipeline Stages
+### Why Build-Once?
 
-The custom pipeline orchestrates deployments through multiple environments:
+**Problem with multiple builds:**
+- QA gets package `pkg-qa-123`
+- UAT gets package `pkg-uat-456` (different!)
+- Prod gets package `pkg-prod-789` (different!)
+- ❌ Can't guarantee what's in production
 
-```mermaid
-flowchart TB
-    Start([Pipeline Start])
-    
-    subgraph Preparation
-        GetComp[Get Components<br/>from Boomi]
-    end
-    
-    subgraph QA["QA Environment"]
-        direction TB
-        QADeploy[Deploy Packages]
-        QATest[Execute Tests]
-        QAAPITest[API Testing<br/>Postman]
-        QADeploy --> QATest --> QAAPITest
-    end
-    
-    subgraph UAT["UAT Environment"]
-        direction TB
-        UATDeploy[Deploy Packages]
-        UATTest[Execute Tests]
-        UATAPITest[API Testing<br/>Postman]
-        UATEmulator[Emulator Tests]
-        UATDeploy --> UATTest --> UATAPITest --> UATEmulator
-    end
-    
-    subgraph Production["Production Environment"]
-        ProdDeploy[Deploy Packages<br/>⚠️ Requires Approval]
-    end
-    
-    Cleanup([Teardown & Cleanup])
-    
-    Start --> Preparation
-    Preparation --> QA
-    QA --> UAT
-    UAT --> Production
-    Production --> Cleanup
-    
-    style Preparation fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    style QA fill:#fff3e0,stroke:#f57c00,stroke-width:2px
-    style UAT fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style Production fill:#ffebee,stroke:#c62828,stroke-width:2px
-    style Start fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style Cleanup fill:#fafafa,stroke:#616161,stroke-width:2px
+**Build-once solution:**
+- Package built ONCE: `pkg-12345`
+- QA deploys: `pkg-12345`
+- UAT deploys: `pkg-12345` (same!)
+- Prod deploys: `pkg-12345` (same!)
+- ✅ Same artifact everywhere
+
+### Quick Start
+
+**1. Use the example:**
+```bash
+cp ci-templates/azuredevops/examples/dummy-api.yaml my-api.yaml
 ```
 
-**Stages:**
-1. **Preparation**: Retrieves component IDs from Boomi
-2. **QA_Deployment**: Deploys to development/QA environment
-3. **QA_Testing**: Executes test processes
-4. **QA_APITesting**: Runs Postman collections
-5. **UAT_Deployment**: Deploys to UAT environment
-6. **UAT_Testing**: Executes UAT test processes
-7. **UAT_APITesting**: Runs UAT API tests
-8. **UAT_Completion**: Final emulator tests
-9. **Prod_Deployment**: Deploys to production (with approval)
-10. **Test_Testing_Teardown**: Cleanup (always runs)
-
-### Example: dummy-api.yaml
-
-The `examples/dummy-api.yaml` demonstrates how to extend the custom pipeline:
-
-```yaml
-#####################################
-# Deployment Pipeline for Dummy API #
-#####################################
-
-parameters:
-  - name: packageVersion
-    displayName: Package Version (0 for new, or Build Number to reuse)
-    type: string
-    default: 0
-  - name: notes
-    displayName: Notes
-    type: string
-    default: 'Dummy API Bundle'
-  - name: deployToQA
-    displayName: Deploy to QA
-    type: boolean
-    default: false
-  - name: deployToUAT
-    displayName: Deploy to UAT
-    type: boolean
-    default: false
-  - name: deployToProd
-    displayName: Deploy to Production
-    type: boolean
-    default: false
-  - name: branchName
-    displayName: Branch Name
-    type: string
-    default: 'master'
-
-trigger:
-  - master
-
-pool:
-  name: Default
-  demands:
-    - agent.os -equals Linux
-
-# Extend the custom deployment template
-extends:
-  template: templates/custom_deploy_pipeline.yaml
-  parameters:
-    packageVersion: ${{ parameters.packageVersion }}
-    packageName: 'dummy-api'
-    componentIds: '2d72456d-baa8-4782-beb6-e18511bf9feb,ea579547-3b49-4881-9ed6-156d27ac38db'
-    test_componentIds: '4fd96edb-18c6-4436-8444-be99c4e91b67'
-    notes: ${{ parameters.notes }}
-    deployToQA: ${{ parameters.deployToQA }}
-    deployToUAT: ${{ parameters.deployToUAT }}
-    deployToProd: ${{ parameters.deployToProd }}
-    postmanCollection: 'dummy-api-basic-postman.json'
-    sleepInMinutes: 1
-    branchName: ${{ parameters.branchName }}
-```
-
-### How It Works
-
-#### 1. Pipeline Parameters
-
-The template accepts runtime parameters:
-- **packageVersion**: `0` creates new package; otherwise reuses existing
-- **deployToQA/UAT/Prod**: Boolean flags to control which stages run
-- **componentIds**: Main components to deploy
-- **test_componentIds**: Test/validation components
-- **postmanCollection**: API tests (optional)
-
-#### 2. Template Extension
-
-The `extends` keyword inherits all stages from `custom_deploy_pipeline.yaml`:
-
+**2. Configure your components:**
 ```yaml
 extends:
-  template: templates/custom_deploy_pipeline.yaml
+  template: templates/base_build_approval_deploy.yaml
   parameters:
-    # Your specific configuration
+    packageName: 'my-api'
+    componentIds: 'comp-id-1,comp-id-2'  # Find with queryProcess.sh
+    deployToQA: true
+    deployToUAT: true
+    deployToProd: true
 ```
 
-This gives you:
-- ✅ Multi-environment deployment
-- ✅ Automated testing between stages
-- ✅ API validation with Postman
-- ✅ Cleanup after execution
+**3. Configure approval gates** (5 minutes):
+- Create environments: UAT, Production
+- Add approvers for each environment
+- See detailed steps in [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md)
 
-#### 3. Conditional Execution
+### 📖 Complete Documentation
 
-Stages execute conditionally based on parameters:
-
-```yaml
-# In custom_deploy_pipeline.yaml
-- ${{ if eq(parameters['deployToQA'], 'true') }}:
-    - stage: QA_Deployment
-      # ...
-
-- ${{ if eq(parameters['deployToUAT'], 'true') }}:
-    - stage: UAT_Deployment
-      # ...
-
-- ${{ if eq(parameters['deployToProd'], 'true') }}:
-    - stage: Prod_Deployment
-      # ...
-```
-
-**Example execution:**
-- `deployToQA=true, deployToUAT=false, deployToProd=false` → Only QA stages run
-- `deployToUAT=true, deployToProd=true` → UAT and Prod stages run (QA skipped)
-
-### Creating Your Own Pipeline
-
-1. **Copy the example:**
-   ```bash
-   cp ci-templates/azuredevops/examples/dummy-api.yaml my-api.yaml
-   ```
-
-2. **Update parameters:**
-   ```yaml
-   parameters:
-     packageVersion: ${{ parameters.packageVersion }}
-     packageName: 'my-api-name'
-     componentIds: 'your-component-id-1,your-component-id-2'
-     test_componentIds: 'your-test-component-id'
-     postmanCollection: 'my-api-tests.json'  # Optional
-     notes: ${{ parameters.notes }}
-     deployToQA: ${{ parameters.deployToQA }}
-     deployToUAT: ${{ parameters.deployToUAT }}
-     deployToProd: ${{ parameters.deployToProd }}
-   ```
-
-3. **Find component IDs:**
-   ```bash
-   export authToken="..."
-   export baseURL="..."
-   source cli/scripts/bin/queryProcess.sh processName="*"
-   # Copy component IDs from output
-   ```
-
-4. **Commit and push:**
-   ```bash
-   git add my-api.yaml
-   git commit -m "Add my-api deployment pipeline"
-   git push
-   ```
-
-5. **Create pipeline in Azure DevOps:**
-   - Go to **Pipelines** → **New Pipeline**
-   - Select repository
-   - Choose **Existing Azure Pipelines YAML file**
-   - Path: `/my-api.yaml`
-   - **Run**
+> **See [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) for:**
+> - Detailed build-once-deploy-many guide
+> - Step-by-step approval configuration
+> - Mermaid flowchart of pipeline stages
+> - Migration guide from old patterns
+> - Troubleshooting
+> - Best practices
 
 ---
 
 ## Configuring Approvals and Gates
 
-For production deployments, you should configure **manual approvals** to prevent accidental deployments.
+> **📖 For detailed approval configuration, see [BUILD_ONCE_PATTERN.md § "Setting Up Approval Gates"](BUILD_ONCE_PATTERN.md#setting-up-approval-gates)**
 
-### 1. Enable Environments
+### Quick Reference
 
-Environments provide deployment tracking and approval gates:
+**Step 1: Create Environments**
+1. Pipelines → Environments → New environment
+2. Create: `UAT` and `Production`
 
-1. Navigate to **Pipelines** → **Environments**
-2. Click **New environment**
-3. Create environments:
-   - `QA` or `Development`
-   - `UAT` or `Testing`
-   - `Production`
+**Step 2: Add Approvers**
+- UAT: Lead Integration Members (min 1 approver)
+- Production: Product/Deployment Managers (min 2 approvers)
 
-### 2. Configure Approval Checks
+**Step 3: Configure Checks** (Optional)
+- Business hours restriction
+- Branch control (main, release/* only)
 
-For the **Production** environment:
-
-1. Go to **Pipelines** → **Environments** → **Production**
-2. Click the **⋮** menu → **Approvals and checks**
-3. Click **+** → **Approvals**
-
-**Configure approvers:**
-- **Approvers**: Add users or groups (e.g., "Release Managers", "Prod Approvers")
-- **Minimum number of approvers**: `1` (or more for critical systems)
-- **Timeout**: `30 days` (pipeline waits this long for approval)
-- **Instructions**: Add guidance like "Review test results before approving"
-
-4. Click **Create**
-
-### 3. Add Environment to Pipeline
-
-Update your pipeline to reference the environment:
-
-**Option A: Modify custom_deploy_pipeline.yaml**
-
-Add `environment` to the Prod_Deployment stage:
-
-```yaml
-- stage: Prod_Deployment
-  dependsOn: UAT_Completion
-  jobs:
-    - deployment: deploy_to_production
-      environment: Production  # Links to Environment for approval
-      variables:
-        componentIds: $[stageDependencies.Preparation.get_components.outputs['output_variable.componentIds']]
-      strategy:
-        runOnce:
-          deploy:
-            steps:
-              - template: deploy_packages.yaml
-                parameters:
-                  # ... existing parameters
-```
-
-**Option B: Add approval in your pipeline** (dummy-api.yaml)
-
-For finer control, wrap stages with deployment jobs:
-
-```yaml
-extends:
-  template: templates/custom_deploy_pipeline.yaml
-  parameters:
-    # ... your parameters
-
-# Override or extend stages for approval
-stages:
-  - stage: Approve_Production
-    dependsOn: UAT_Completion
-    jobs:
-      - deployment: approve_prod
-        displayName: 'Approve Production Deployment'
-        environment: Production  # Requires approval
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - script: echo "Approved for production"
-```
-
-### 4. Configure Additional Checks
-
-Beyond manual approval, add automated gates:
-
-#### Business Hours Check
-
-Restrict deployments to business hours:
-
-1. Environment → **Approvals and checks** → **+** → **Business hours**
-2. Configure:
-   - **Time zone**: Your timezone
-   - **Days**: Monday - Friday
-   - **Start time**: 9:00 AM
-   - **End time**: 5:00 PM
-
-#### Branch Control
-
-Ensure only specific branches deploy to production:
-
-1. Environment → **Approvals and checks** → **+** → **Branch control**
-2. **Allowed branches**: `refs/heads/main`, `refs/heads/release/*`
-
-#### Required Template Check
-
-Enforce use of approved pipeline templates:
-
-1. Environment → **Approvals and checks** → **+** → **Required template**
-2. Specify: `ci-templates/azuredevops/pipelines/custom_deploy_pipeline.yaml@main`
-
-### 5. Approval Workflow
-
-When a pipeline reaches Production stage:
-
-1. Pipeline **pauses** at the deployment
-2. **Approvers receive notification** (email + Azure DevOps)
-3. Approver reviews:
-   - **Test results** from QA/UAT
-   - **API test reports**
-   - **Change notes**
-4. Approver clicks **Review** → **Approve** or **Reject**
-5. If approved, deployment proceeds
-6. If rejected, pipeline fails with approver's comment
-
-**Approval UI:**
-```
-Production deployment is waiting for review
-├─ Environment: Production
-├─ Requested by: John Doe
-├─ Pipeline: dummy-api #123
-├─ Branch: main
-└─ [Approve] [Reject] [Reassign]
-```
-
-### 6. Role-Based Approvals
+### Role-Based Approvals
 
 Configure who can approve based on Azure AD groups:
 

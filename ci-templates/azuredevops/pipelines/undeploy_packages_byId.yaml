@@ -1,0 +1,65 @@
+#################################################
+# Undeploy Package by ID Template for Boomi    #
+#################################################
+
+parameters:
+  #####################
+  # Common parameters #
+  #####################
+  h1: ''
+  h2: ''
+  baseURL: ''
+  authToken: ''
+  VERBOSE: ''
+  SLEEP_TIMER: ''
+  WORKSPACE: ''
+  SCRIPTS_HOME: ''
+  #######################
+  # Specific parameters #
+  #######################
+  packageId: ''
+  env: ''
+  componentId: ''
+
+steps:
+  - script: |
+      ####################
+      # Common variables #
+      ####################
+      export h1="${{ parameters.h1 }}"
+      export h2="${{ parameters.h2 }}"
+      export baseURL="${{ parameters.baseURL }}"
+      export authToken="${{ parameters.authToken }}"
+      export VERBOSE="${{ parameters.VERBOSE }}"
+      export SLEEP_TIMER="${{ parameters.SLEEP_TIMER }}"
+      export WORKSPACE="${{ parameters.WORKSPACE }}"
+      export SCRIPTS_HOME="${{ parameters.SCRIPTS_HOME }}"
+      ######################
+      # Specific variables #
+      ######################
+      export packageId="${{ parameters.packageId }}"
+      export env="${{ parameters.env }}"
+      export componentId="${{ parameters.componentId }}"
+      
+      #############
+      # Execution #
+      #############
+      echo "Undeploying package by ID..."
+      echo "Package ID: ${packageId}"
+      echo "Environment: ${env}"
+      echo "Component ID: ${componentId}"
+      
+      cd $(Build.Repository.LocalPath)
+      
+      # Use undeploy script with componentId
+      source ${SCRIPTS_HOME}/bin/undeployPackages.sh \
+        env="${env}" \
+        componentId="${componentId}"
+      
+      if [ "$ERROR" -gt 0 ]; then
+        echo "⚠️  Undeploy warning: $ERROR_MESSAGE (may already be undeployed)"
+      else
+        echo "✅ Package ${packageId} undeployed successfully from ${env}"
+      fi
+    displayName: 'Undeploy Package ${{ parameters.packageId }} from ${{ parameters.env }}'
+    continueOnError: true  # Don't fail pipeline if package already undeployed
