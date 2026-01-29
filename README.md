@@ -14,6 +14,14 @@ This framework provides:
 - **Production-Ready** - Battle-tested scripts with error handling, retry logic, and security features
 - **Extensible** - Easy to customize for your deployment workflows
 
+## 📖 Project History
+
+**Original Development:** Boomi Professional Services Organization (PSO)
+**Current Status:** Community-maintained (original version is no longer supported by Boomi)
+**Maintainer:** [Anshuman Padhi](https://github.com/anshuman-padhi)
+
+This repository was created to continue development and support for the Boomi CI/CD CLI framework, originally built by Boomi PSO. The goal is to enhance the toolset, improve documentation, and provide ongoing community support for Boomi automation needs.
+
 ## 🚀 Quick Start
 
 ### 1. Choose Your CI/CD Platform
@@ -162,32 +170,43 @@ See [CLI Reference](docs/CLI_REFERENCE.md) for complete documentation.
 
 ### How It Works
 
+```mermaid
+flowchart TB
+    subgraph cicd["CI/CD Platform Layer"]
+        Jenkins["Jenkins"]
+        ADO["Azure DevOps"]
+        GHA["GitHub Actions"]
+        CircleCI["CircleCI"]
+        GitLab["GitLab CI"]
+    end
+    
+    subgraph wrapper["Platform Template Layer"]
+        Wrapper["Platform Wrapper Scripts<br/>(deploy_packages.yaml/sh)"]
+    end
+    
+    subgraph core["Core CLI Layer"]
+        CLI["Universal CLI Scripts<br/>(deployPackages.sh, executeProcess.sh, etc.)"]
+    end
+    
+    subgraph boomi["Boomi Platform"]
+        API["AtomSphere REST API"]
+    end
+    
+    cicd -->|"Orchestrates<br/>Workflow"| wrapper
+    wrapper -->|"Sets env vars<br/>& sources"| core
+    core -->|"HTTP REST<br/>calls"| boomi
+    
+    style cicd fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    style wrapper fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style core fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    style boomi fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
 ```
-┌─────────────────────┐
-│   CI/CD Platform    │  ← Your chosen platform
-│  (Jenkins, ADO,     │     (orchestrates workflow)
-│   GitHub, etc.)     │
-└──────────┬──────────┘
-           │ calls
-           ▼
-┌─────────────────────-┐
-│  Platform Template   │  ← Thin wrapper script
-│  (deploy_packages.sh)│    (sets env vars)
-└──────────┬──────────-┘
-           │ sources
-           ▼
-┌─────────────────────┐
-│    Core CLI         │  ← Tool-agnostic logic
-│  (deployPackages.sh │    (calls Boomi API)
-│   in cli/scripts/)  │
-└──────────┬──────────┘
-           │ calls
-           ▼
-┌─────────────────────┐
-│   Boomi Platform    │  ← AtomSphere API
-│   (REST API)        │
-└─────────────────────┘
-```
+
+**Architecture Layers:**
+1. **CI/CD Platform** - Your chosen automation platform (orchestrates workflows)
+2. **Platform Templates** - Thin wrapper scripts (set environment variables, call core CLI)
+3. **Core CLI** - Tool-agnostic Bash scripts (business logic, API calls)
+4. **Boomi Platform** - AtomSphere REST API (target system)
 
 ## 📚 Documentation
 
@@ -287,11 +306,30 @@ See platform-specific troubleshooting in setup guides.
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-Copyright (c) 2026 Essilor
+**Original Work:** Copyright (c) 2021 Boomi Professional Services Organization  
+**Maintained & Enhanced by:** Anshuman Padhi (2026-present)
 
 ## 🙏 Acknowledgments
 
-This framework builds on best practices from the Boomi community and integrates with the official Boomi AtomSphere API.
+### Original Development
+This framework was originally developed by the **Boomi Professional Services Organization (PSO)** as an internal toolset for automating Boomi deployments. The original codebase provided the foundation for package management, process execution, and multi-platform CI/CD integration.
+
+### Current Status
+The original Boomi PSO version is **no longer maintained or officially supported**. This repository represents a community-driven effort to:
+- ✅ Enhance and modernize the codebase
+- ✅ Add comprehensive documentation
+- ✅ Expand CI/CD platform support
+- ✅ Maintain compatibility with latest Boomi APIs
+- ✅ Provide ongoing community support
+
+### Special Thanks
+- **Boomi PSO Team** - For creating the original CLI framework
+- **Boomi AtomSphere API** - For providing the integration platform
+- **Open Source Community** - For jq, curl, and bash tools
+- **CI/CD Platform Teams** - Azure DevOps, Jenkins, GitHub Actions, etc.
+
+### Contributing
+This is now a community-maintained project. Contributions, bug reports, and feature requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ---
 
