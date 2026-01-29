@@ -274,6 +274,108 @@ Environment-specific configuration:
 4. Click **Save**
 5. Repeat for `boomiruntime`
 
+### Advanced Configuration (Optional)
+
+The following variables are optional and can be added for advanced features:
+
+#### Core Optional Variables
+
+These can be added to the `boomicicd` variable group if needed:
+
+| Variable | Description | Default/Example | When to Use |
+|----------|-------------|-----------------|-------------|
+| `accountId` | Boomi account ID | `acme-ABC123` | Already in `baseURL`, but some scripts may reference it directly |
+| `h1` | HTTP Content-Type header | `Content-Type: application/json` | Usually auto-set by templates, override if needed |
+| `h2` | HTTP Accept header | `Accept: application/json` | Usually auto-set by templates, override if needed |
+
+#### Performance Tuning Variables
+
+Add these to your pipeline YAML if you need to adjust performance:
+
+```yaml
+variables:
+  - group: boomicicd
+  - group: boomiruntime
+  - name: SLEEP_TIMER
+    value: '0.2'  # API rate limiting (default: 0.2 = 5 requests/second)
+  - name: VERBOSE
+    value: 'false'  # Set to 'true' for detailed debugging output
+```
+
+**When to adjust:**
+- **`SLEEP_TIMER`**: Increase to `0.5` or `1.0` if hitting Boomi API rate limits (429 errors)
+- **`VERBOSE`**: Set to `'true'` when troubleshooting pipeline failures
+
+#### Git Integration Variables
+
+For tracking component XML changes in Git repository:
+
+**Create a new variable group: `boomi-git-config`**
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `gitRepoURL` | Git repository URL for component XML | `https://dev.azure.com/org/project/_git/boomi-components` |
+| `gitUserName` | Git commit author name | `Azure Pipeline` or `Boomi CI Bot` |
+| `gitUserEmail` | Git commit author email | `pipeline@company.com` |
+| `gitRepoName` | Repository folder name | `boomi-components` |
+| `gitOption` | Clone mode | `CLONE` (clone repo) or leave empty (use tags) |
+
+**Add to your pipeline:**
+```yaml
+variables:
+  - group: boomicicd
+  - group: boomiruntime
+  - group: boomi-git-config  # Add this
+
+# Then use branchName parameter in templates
+- template: ci-templates/azuredevops/pipelines/deploy_packages.yaml
+  parameters:
+    componentIds: 'comp-id-1'
+    branchName: 'main'  # Now supported with Git config
+```
+
+**What this enables:**
+- Component XML is extracted and committed to Git repository
+- Track changes over time
+- Version control for Boomi components
+- Enables Boomi branch/merge feature integration
+
+#### SonarQube Integration Variables
+
+For code quality scanning of Boomi component XML:
+
+**Create a new variable group: `boomi-sonar-config`**
+
+| Variable | Description | Example | Secret |
+|----------|-------------|---------|--------|
+| `SONAR_HOST` | Path to sonar-scanner binary | `/usr/local/bin/sonar-scanner` | ❌ |
+| `sonarHostURL` | SonarQube server URL | `https://sonar.company.com` | ❌ |
+| `sonarHostToken` | SonarQube authentication token | `squ_abc123...` | ✅ Yes |
+| `sonarProjectKey` | SonarQube project identifier | `BoomiProject` | ❌ |
+| `sonarRulesFile` | Path to Boomi rules file | `conf/BoomiSonarRules.xml` | ❌ |
+
+**Prerequisites:**
+- SonarQube server accessible from agent
+- `sonar-scanner` installed on self-hosted agent
+- SonarQube project created with appropriate rules
+
+**Add to your pipeline:**
+```yaml
+variables:
+  - group: boomicicd
+  - group: boomiruntime
+  - group: boomi-sonar-config  # Add this
+
+# SonarQube scanning happens automatically during package creation
+# if Git integration is also enabled
+```
+
+**What this enables:**
+- Automated code quality analysis
+- XML validation and best practices checking
+- Integration with SonarQube dashboards
+- Quality gates for deployments
+
 ---
 
 ## Available Templates
