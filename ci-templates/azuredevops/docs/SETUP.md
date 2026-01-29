@@ -73,7 +73,7 @@ steps:
       chmod +x $(Build.SourcesDirectory)/ci-templates/azuredevops/pipelines/*.sh
     displayName: 'Prepare Workspace and Scripts'
 
-  - template: ci-templates/azuredevops/pipelines/custom_deploy_pipeline.yaml
+  - template: ci-templates/azuredevops/pipelines/deploy_packages.yaml
     parameters:
       packageName: 'BoomiPackage'
       packageVersion: '$(Build.BuildNumber)'

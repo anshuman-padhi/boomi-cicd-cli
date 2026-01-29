@@ -28,7 +28,7 @@ steps:
       chmod +x $(Build.SourcesDirectory)/azdevops_templates/*.sh
     displayName: 'Prepare Workspace and Scripts'
 
-  - template: azdevops_templates/custom_deploy_pipeline.yaml
+  - template: azdevops_templates/deploy_packages.yaml
     parameters:
       packageName: 'BoomiPackage'
       packageVersion: '$(Build.BuildNumber)'
