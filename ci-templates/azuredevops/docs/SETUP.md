@@ -1,59 +1,373 @@
 # Azure DevOps Setup Guide
 
-This guide shows you how to set up the Boomi CI/CD CLI with Azure DevOps Pipelines.
+Complete guide for integrating Boomi CI/CD CLI with Azure DevOps Pipelines.
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Setting Up Self-Hosted Agent](#setting-up-self-hosted-agent-complete-guide)
+- [Quick Start](#quick-start)
+- [Variable Groups Configuration](#variable-groups-configuration)
+- [Available Templates](#available-templates)
+- [Creating Your First Pipeline](#creating-your-first-pipeline)
+- [Common Patterns](#common-patterns)
+- [Approval Gates Setup](#approval-gates-setup)
+- [Troubleshooting](#troubleshooting)
+- [Next Steps](#next-steps)
+
+---
 
 ## Prerequisites
 
 1. **Azure DevOps Organization & Project**
-2. **Self-hosted or Microsoft-hosted agent** with:
-   - Bash (4.0+)
+2. **Agent Requirements:**
+   - Bash 4.0+
    - curl
    - jq
-3. **Boomi Account Credentials**
+   - Self-hosted or Microsoft-hosted Linux agent
+3. **Boomi Credentials:**
+   - Boomi account ID
+   - API token with deployment permissions
 
-## Setup Steps
+## Setting Up Self-Hosted Agent (Complete Guide)
 
-### 1. Configure Variable Groups
+### Step 1: Prepare Linux Machine
 
-Create two variable groups in Azure DevOps:
+**System Requirements:**
+- Ubuntu 18.04+, RHEL 7+, or compatible Linux distribution
+- 2+ CPU cores
+- 4+ GB RAM
+- 20+ GB disk space
+- Network access to:
+  - `dev.azure.com` (Azure DevOps)
+  - `api.boomi.com` (Boomi AtomSphere API)
 
-#### Variable Group: `boomicicd`
-| Variable | Value | Secret |
-|----------|-------|--------|
-| `authToken` | Base64 encoded `BOOMI_ACCOUNT.username:token` | ✓ |
-| `baseURL` | `https://api.boomi.com/api/rest/v1/ACCOUNT_ID/` | |
+### Step 2: Install Dependencies
 
-#### Variable Group: `boomiruntime`
+**On Ubuntu/Debian:**
+```bash
+# Update package list
+sudo apt-get update
+
+# Install required packages
+sudo apt-get install -y \
+  curl \
+  jq \
+  git \
+  bash \
+  libicu60 \
+  libssl1.0.0 \
+  ca-certificates
+
+# Verify installations
+jq --version        # Should show jq-1.5 or higher
+curl --version      # Should show curl 7.x or higher
+bash --version      # Should show 4.0 or higher
+git --version       # Should show 2.x or higher
+```
+
+**On RHEL/CentOS:**
+```bash
+# Update packages
+sudo yum update -y
+
+# Install required packages
+sudo yum install -y \
+  curl \
+  jq \
+  git \
+  bash \
+  libicu \
+  openssl-libs \
+  ca-certificates
+
+# Verify installations
+jq --version
+curl --version
+bash --version
+git --version
+```
+
+### Step 3: Create Agent User
+
+```bash
+# Create dedicated user for agent
+sudo useradd -m -s /bin/bash azureagent
+
+# Set password (optional, for manual login)
+sudo passwd azureagent
+
+# Add to sudo group if needed for installations
+sudo usermod -aG sudo azureagent
+
+# Switch to agent user
+sudo su - azureagent
+```
+
+### Step 4: Download and Install Azure DevOps Agent
+
+```bash
+# Create agent directory
+mkdir ~/myagent && cd ~/myagent
+
+# Download latest agent (check for latest version at https://github.com/Microsoft/azure-pipelines-agent/releases)
+wget https://vstsagentpackage.azureedge.net/agent/3.236.1/vsts-agent-linux-x64-3.236.1.tar.gz
+
+# Extract
+tar zxvf vsts-agent-linux-x64-3.236.1.tar.gz
+
+# Clean up tarball
+rm vsts-agent-linux-x64-3.236.1.tar.gz
+```
+
+### Step 5: Configure the Agent
+
+```bash
+# Run configuration script
+./config.sh
+
+# You will be prompted for:
+# 1. Server URL: https://dev.azure.com/{your-organization}
+# 2. Authentication type: PAT (Personal Access Token)
+# 3. Personal Access Token: [paste your PAT]
+# 4. Agent pool: Default (or your custom pool name)
+# 5. Agent name: boomi-agent-01 (or custom name)
+# 6. Work folder: _work (default, press Enter)
+# 7. Run as service: Y (yes, recommended)
+```
+
+**To create a Personal Access Token (PAT):**
+1. In Azure DevOps: Click your profile icon → **Personal access tokens**
+2. **+ New Token**
+3. Name: `Boomi Agent Token`
+4. Organization: Select your organization
+5. Scopes: **Agent Pools (Read & manage)**
+6. **Create** and **copy the token** (you won't see it again!)
+
+### Step 6: Start the Agent
+
+**Interactive Mode (for testing):**
+```bash
+./run.sh
+```
+
+**As a Service (production):**
+```bash
+# Install as systemd service
+sudo ./svc.sh install azureagent
+
+# Start service
+sudo ./svc.sh start
+
+# Check status
+sudo ./svc.sh status
+
+# Enable auto-start on boot
+sudo systemctl enable vsts.agent.{your-org}.{pool-name}.{agent-name}
+```
+
+### Step 7: Verify Agent Connection
+
+1. Go to Azure DevOps → **Project Settings** → **Agent pools**
+2. Select your pool (e.g., "Default")
+3. **Agents** tab
+4. Verify your agent shows as **Online** (green)
+
+### Step 8: Clone Repository to Agent
+
+```bash
+# As azureagent user
+cd ~
+
+# Clone repository (use HTTPS or SSH)
+git clone https://dev.azure.com/{organization}/{project}/_git/{repository}
+
+# Or if using external repo
+git clone https://github.com/your-org/boomi-cicd-cli.git
+```
+
+### Step 9: Test CLI Scripts
+
+```bash
+# Navigate to CLI scripts
+cd ~/boomi-cicd-cli/cli/scripts
+
+# Make scripts executable
+chmod +x bin/*.sh
+
+# Set test environment variables
+export authToken="YOUR_ACCOUNT.username:api_token"
+export baseURL="https://api.boomi.com/api/rest/v1/YOUR_ACCOUNT_ID/"
+export SCRIPTS_HOME="$(pwd)"
+export WORKSPACE="$(pwd)/workspace"
+
+# Test a simple query
+source bin/queryEnvironment.sh classification="*"
+
+# If successful, you'll see JSON output with your environments
+```
+
+### Step 10: Create Agent Pool (If Needed)
+
+If you want a dedicated pool for Boomi deployments:
+
+1. **Project Settings** → **Agent pools** → **Add pool**
+2. Pool type: **Self-hosted**
+3. Name: `Boomi-Agents`
+4. Grant access permission to all pipelines: ✓ (check)
+5. **Create**
+
+Then reconfigure your agent (Step 5) to use this new pool.
+
+---
+
+## Quick Start
+
+```bash
+# 1. Agent already set up (see above)
+
+# 2. Repository cloned to agent
+
+# 3. Copy example pipeline
+cp ci-templates/azuredevops/examples/dummy-api.yaml my-pipeline.yaml
+
+# 4. Configure variable groups (see below)
+
+# 5. Create pipeline in Azure DevOps pointing to my-pipeline.yaml
+
+# 6. Run pipeline
+```
+
+---
+
+## Variable Groups Configuration
+
+Create two variable groups in **Azure DevOps** → **Pipelines** → **Library**:
+
+### Variable Group: `boomicicd`
+
+Core Boomi API credentials:
+
+| Variable | Value | Secret | Example |
+|----------|-------|--------|---------|
+| `authToken` | `BOOMI_ACCOUNT.username:api_token` | ❌ No | `acme-ABC123.john.doe:sk-a1b2c3d4...` |
+| `baseURL` | Boomi API base URL | ❌ No | `https://api.boomi.com/api/rest/v1/acme-ABC123/` |
+
+> **Note:** `authToken` is **NOT** Base64 encoded. Use plain text format: `ACCOUNT.username:token`
+
+### Variable Group: `boomiruntime` 
+
+Environment-specific configuration:
+
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `development_apim_envname` | Development environment ID | `env-dev-123` |
-| `testing_apim_envname` | UAT environment ID | `env-uat-456` |
-| `production_apim_envname` | Production environment ID | `env-prod-789` |
+| `development_apim_envname` | Development environment name | `Development` or `Dev-QA` |
+| `testing_apim_envname` | UAT/Testing environment name | `UAT` or `Testing` |
+| `production_apim_envname` | Production environment name | `Production` or `Prod` |
 | `testing_apim_atom` | Testing atom name | `Test-Atom-01` |
+| `production_apim_atom` | Production atom name | `Prod-Atom-01` |
 
-### 2. Clone Repository and Configure Pipeline
+**To create variable groups:**
+1. Navigate to **Pipelines** → **Library** → **+ Variable group**
+2. Name: `boomicicd`
+3. Add variables listed above
+4. Click **Save**
+5. Repeat for `boomiruntime`
 
-1. Clone this repository to your Azure DevOps project
-2. Copy the example pipeline:
-   ```bash
-   cp ci-templates/azuredevops/examples/azure-pipelines.yml azure-pipelines.yml
-   ```
+---
 
-3. Edit `azure-pipelines.yml` to configure:
-   - Agent pool (`pool.name`)
-   - Component IDs or process names to deploy
-   - Environment settings
+## Available Templates
 
-### 3. Pipeline Structure
+### 🌟 Recommended: Build-Once-Deploy-Many
 
-The example pipeline uses a custom template that orchestrates:
-- **QA Deployment** → Test → Validation
-- **UAT Deployment** → Test → API Testing
-- **Production Deployment** (conditional)
+Production-ready templates implementing the build-once-deploy-many pattern:
 
+| Template | Purpose | Documentation |
+|----------|---------|---------------|
+| `base_build_approval_deploy.yaml` | ✅ **RECOMMENDED** - Complete multi-stage pipeline with approval gates | [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) |
+| `create_packages.yaml` | Build package once, export packageId | [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) |
+| `deploy_packages_byId.yaml` | Deploy pre-built package by ID | [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) |
+| `undeploy_packages_byId.yaml` | Undeploy package by ID | [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) |
+
+> **📖 For production deployments, see the complete [Build-Once-Deploy-Many Guide](BUILD_ONCE_PATTERN.md)**
+
+### Quick Deploy Templates
+
+For development and ad-hoc deployments:
+
+| Template | Purpose | Note |
+|----------|---------|------|
+| `deploy_packages.yaml` | Create and deploy package | ⚠️ Builds NEW package each time |
+| `undeploy_packages.yaml` | Undeploy packages | By component ID |
+
+### Utility Templates
+
+Supporting templates for specialized operations:
+
+| Template | Purpose |
+|----------|---------|
+| `get_components.yaml` | Retrieve component IDs from Boomi |
+| `execute_processes.yaml` | Execute processes on atom |
+| `validate_processes.yaml` | Validate execution results |
+| `call_api.yaml` | Run Postman collections (API testing) |
+| `call_secretmanager.yaml` | Retrieve secrets from Azure Key Vault / AWS Secrets Manager |
+| `retrieve_extensions.yaml` | Get environment extensions |
+| `update_extensions.yaml` | Update environment extensions |
+| `clean_up.yaml` | Cleanup temporary files |
+
+---
+
+## Creating Your First Pipeline
+
+### Method 1: Using Build-Once Pattern (Recommended)
+
+**1. Copy the example:**
+```bash
+cp ci-templates/azuredevops/examples/dummy-api.yaml my-api-pipeline.yaml
+```
+
+**2. Edit `my-api-pipeline.yaml`:**
 ```yaml
 trigger:
   - main
+
+pool:
+  name: 'Default'  # Your agent pool
+
+extends:
+  template: ci-templates/azuredevops/pipelines/base_build_approval_deploy.yaml
+  parameters:
+    packageName: 'my-api'
+    componentIds: 'comp-id-1,comp-id-2'  # Find with queryProcess.sh
+    deployToQA: true
+    deployToUAT: true
+    deployToProd: true
+```
+
+**3. Find your component IDs:**
+```bash
+# From your local machine
+export authToken="BOOMI_ACCOUNT.username:token"
+export baseURL="https://api.boomi.com/api/rest/v1/ACCOUNT_ID/"
+export SCRIPTS_HOME="$(pwd)/cli/scripts"
+
+cd $SCRIPTS_HOME
+source bin/queryProcess.sh processName="MyProcessName"
+# Copy the componentId from output
+```
+
+**4. Create pipeline in Azure DevOps:**
+- **Pipelines** → **New pipeline** → **Azure Repos Git**
+- Select your repository
+- **Existing Azure Pipelines YAML file**
+- Path: `/my-api-pipeline.yaml`
+- **Run**
+
+### Method 2: Simple Deployment (Development/QA)
+
+```yaml
+trigger:
+  - develop
 
 pool:
   name: 'Default'
@@ -71,304 +385,186 @@ steps:
       mkdir -p $(WORKSPACE)
       chmod +x $(SCRIPTS_HOME)/bin/*.sh
       chmod +x $(Build.SourcesDirectory)/ci-templates/azuredevops/pipelines/*.sh
-    displayName: 'Prepare Workspace and Scripts'
+    displayName: 'Prepare Environment'
 
   - template: ci-templates/azuredevops/pipelines/deploy_packages.yaml
     parameters:
-      packageName: 'BoomiPackage'
+      packageName: 'dev-package'
       packageVersion: '$(Build.BuildNumber)'
-      componentIds: 'component-id-1,component-id-2'
+      componentIds: 'comp-id-1,comp-id-2'
+      env: $(development_apim_envname)
+      notes: 'Development deployment'
 ```
 
-### 4. Available Templates
+---
 
-#### Build-Once-Deploy-Many Templates (Recommended for Production)
+## Common Patterns
 
-| Template | Purpose |
-|----------|---------|
-| `base_build_approval_deploy.yaml` | ✅ **RECOMMENDED** - Complete pipeline with build-once pattern and approval gates |
-| `create_packages.yaml` | Build package once and export packageId |
-| `deploy_packages_byId.yaml` | Deploy existing package by ID (does NOT create new package) |
-| `undeploy_packages_byId.yaml` | Undeploy package by ID |
+### Deploy Specific Components by ID
 
-> **📖 See [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) for detailed guide on build-once-deploy-many pattern**
-
-#### Quick Deploy Templates (Recommended for Development and QA)
-
-| Template | Purpose | Note |
-|----------|---------|------|
-| `deploy_packages.yaml` | Deploy packaged components | Creates NEW package then deploys |
-| `undeploy_packages.yaml` | Undeploy packages from environment | By component ID |
-
-#### Utility Templates
-
-| Template | Purpose |
-|----------|---------|
-| `get_components.yaml` | Retrieve component IDs from Boomi |
-| `execute_processes.yaml` | Execute processes on an atom |
-| `validate_processes.yaml` | Validate process execution results |
-| `call_api.yaml` | Run Postman collections for API testing |
-| `call_secretmanager.yaml` | Retrieve secrets from Azure Key Vault or AWS Secrets Manager |
-| `retrieve_extensions.yaml` | Retrieve environment extensions |
-| `update_extensions.yaml` | Update environment extensions |
-| `clean_up.yaml` | Cleanup temporary files |
-
-
-### 5. Triggering a Deployment
-
-1. **From Pipeline UI**: Manually trigger with parameters
-2. **From Code**: Push to the configured branch (e.g., `main`)
-3. **Via API**: Use Azure DevOps REST API
-
-### 6. Monitoring
-
-- View logs in Azure DevOps pipeline runs
-- Check `$(WORKSPACE)/out.json` for API responses
-- Review HTML reports generated by publish scripts
-
-## Common Configuration Patterns
-
-### Deploy Specific Components
 ```yaml
 - template: ci-templates/azuredevops/pipelines/deploy_packages.yaml
   parameters:
-    componentIds: 'abc-123,def-456'
-    env: $(development_apim_envname)
-    packageVersion: '1.0.0'
-    notes: 'Hotfix deployment'
-```
-
-### Deploy by Process Name
-```yaml
-- template: ci-templates/azuredevops/pipelines/deploy_packages.yaml
-  parameters:
-    processNames: 'ProcessA,ProcessB'
+    componentIds: 'abc-123,def-456,ghi-789'
     env: $(testing_apim_envname)
+    packageVersion: '$(Build.BuildNumber)'
+    notes: 'UAT deployment'
+```
+
+### Deploy by Process Names
+
+```yaml
+- template: ci-templates/azuredevops/pipelines/deploy_packages.yaml
+  parameters:
+    processNames: 'ProcessA,ProcessB,ProcessC'
+    env: $(development_apim_envname)
+    packageVersion: '1.2.3'
+```
+
+### Deploy with Branch/Merge Support
+
+```yaml
+- template: ci-templates/azuredevops/pipelines/deploy_packages.yaml
+  parameters:
+    componentIds: 'comp-id-1'
+    branchName: 'feature/new-integration'  # Boomi branch name
+    env: $(development_apim_envname)
     packageVersion: '$(Build.BuildNumber)'
 ```
 
-## Troubleshooting
+### Execute Process After Deployment
 
-### Error: `jq: command not found`
-Install jq on your agent:
-```bash
-# Ubuntu/Debian
-sudo apt-get install jq
-
-# RHEL/CentOS
-sudo yum install jq
-```
-
-### Error: Permission denied
-Ensure scripts are executable:
-```bash
-chmod +x cli/scripts/bin/*.sh
-chmod +x ci-templates/azuredevops/pipelines/*.sh
-```
-
-### Error: Authentication failed
-Verify your `authToken` in the `boomicicd` variable group is correctly formatted:
-```
-Base64(BOOMI_ACCOUNT.username:api_token)
-```
-
-## Next Steps
-
-- Review [CLI Reference](../../docs/CLI_REFERENCE.md) for all available commands
-- Explore [Common Workflows](../../examples/common-workflows/) for more patterns
-- Customize templates for your specific deployment strategy
-
----
-
-## Advanced: Build-Once-Deploy-Many Pattern
-
-The **recommended approach** for production deployments is the build-once-deploy-many pattern using `base_build_approval_deploy.yaml`.
-
-### Why Build-Once?
-
-**Problem with multiple builds:**
-- QA gets package `pkg-qa-123`
-- UAT gets package `pkg-uat-456` (different!)
-- Prod gets package `pkg-prod-789` (different!)
-- ❌ Can't guarantee what's in production
-
-**Build-once solution:**
-- Package built ONCE: `pkg-12345`
-- QA deploys: `pkg-12345`
-- UAT deploys: `pkg-12345` (same!)
-- Prod deploys: `pkg-12345` (same!)
-- ✅ Same artifact everywhere
-
-### Quick Start
-
-**1. Use the example:**
-```bash
-cp ci-templates/azuredevops/examples/dummy-api.yaml my-api.yaml
-```
-
-**2. Configure your components:**
 ```yaml
-extends:
-  template: templates/base_build_approval_deploy.yaml
+# Deploy packages
+- template: ci-templates/azuredevops/pipelines/deploy_packages.yaml
   parameters:
-    packageName: 'my-api'
-    componentIds: 'comp-id-1,comp-id-2'  # Find with queryProcess.sh
-    deployToQA: true
-    deployToUAT: true
-    deployToProd: true
+    componentIds: 'comp-id-1'
+    env: $(testing_apim_envname)
+    packageVersion: '$(Build.BuildNumber)'
+
+# Execute process for validation
+- template: ci-templates/azuredevops/pipelines/execute_processes.yaml
+  parameters:
+    atomName: $(testing_apim_atom)
+    atomType: 'ATOM'
+    processName: 'Validation_Process'
 ```
-
-**3. Configure approval gates** (5 minutes):
-- Create environments: UAT, Production
-- Add approvers for each environment
-- See detailed steps in [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md)
-
-### 📖 Complete Documentation
-
-> **See [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) for:**
-> - Detailed build-once-deploy-many guide
-> - Step-by-step approval configuration
-> - Mermaid flowchart of pipeline stages
-> - Migration guide from old patterns
-> - Troubleshooting
-> - Best practices
 
 ---
 
-## Configuring Approvals and Gates
+## Approval Gates Setup
+
+For production deployments, configure approval gates to ensure controlled releases.
+
+### Quick Setup (5 minutes)
+
+**1. Create Environments:**
+- **Pipelines** → **Environments** → **New environment**
+- Create: `UAT` and `Production`
+
+**2. Add Approvals to Production:**
+- Go to **Production** environment
+- **⋮** → **Approvals and checks** → **Approvals**
+- Add approvers (users or Azure AD groups)
+- Set minimum number of approvers (recommended: 2 for production)
+- Set timeout: 24-48 hours
+- **Create**
+
+**3. Optional: Add Checks:**
+- **Business hours** - Restrict to 9 AM - 5 PM Mon-Fri
+- **Branch control** - Only allow `main` and `release/*` branches
+- **Required template** - Enforce use of approved templates
+
+### Role-Based Approval Groups
+
+**Create Azure AD Groups:**
+1. **Azure Active Directory** → **Groups** → **New group**
+2. Create groups:
+   - `Boomi-QA-Approvers`
+   - `Boomi-UAT-Approvers`
+   - `Boomi-Prod-Approvers`
+3. Add members to each group
+
+**Assign to Environments:**
+- Production environment → **Approvals**
+- Add `Boomi-Prod-Approvers` as approver
+- Require 2+ approvals for critical systems
 
 > **📖 For detailed approval configuration, see [BUILD_ONCE_PATTERN.md § "Setting Up Approval Gates"](BUILD_ONCE_PATTERN.md#setting-up-approval-gates)**
 
-### Quick Reference
+---
 
-**Step 1: Create Environments**
-1. Pipelines → Environments → New environment
-2. Create: `UAT` and `Production`
+## Troubleshooting
 
-**Step 2: Add Approvers**
-- UAT: Lead Integration Members (min 1 approver)
-- Production: Product/Deployment Managers (min 2 approvers)
+### Common Errors
 
-**Step 3: Configure Checks** (Optional)
-- Business hours restriction
-- Branch control (main, release/* only)
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `jq: command not found` | jq not installed on agent | Install: `sudo apt-get install jq` or `sudo yum install jq` |
+| `Permission denied` | Scripts not executable | Run: `chmod +x cli/scripts/bin/*.sh` |
+| `401 Unauthorized` | Invalid authToken | Verify format: `ACCOUNT.username:token` (NOT Base64) |
+| `404 Not Found` | Invalid baseURL or component not found | Check baseURL has trailing `/` |
+| `componentId is null` | Process name not found | Verify exact process name (case-sensitive) |
+| `SCRIPTS_HOME not set` | Variable not defined | Add to pipeline variables |
 
-### Role-Based Approvals
+### Debugging Steps
 
-Configure who can approve based on Azure AD groups:
-
-**Create Approval Groups:**
-
-1. **Azure Active Directory** → **Groups** → **New group**
-2. Create groups:
-   - `Boomi-QA-Approvers` (for QA deployments)
-   - `Boomi-UAT-Approvers` (for UAT deployments)
-   - `Boomi-Prod-Approvers` (for production deployments)
-
-**Assign to Environments:**
-
-1. Navigate to **Production** environment
-2. **Approvals and checks** → **Approvals** → **Edit**
-3. **Approvers**: Add `Boomi-Prod-Approvers` group
-4. Set **Minimum number of approvers** based on risk:
-   - Critical systems: `2` approvers
-   - Standard systems: `1` approver
-
-**Environment Permissions:**
-
-1. Environment → **⋮** → **Security**
-2. Add groups with specific permissions:
-   - `Boomi-Prod-Approvers`: **Approver** role
-   - `Boomi-Developers`: **Reader** role (view only)
-   - `Boomi-Release-Managers`: **Administrator** role
-
-### 7. Approval Notifications
-
-Configure notifications for approval requests:
-
-1. **Project Settings** → **Notifications**
-2. **New subscription** → **Build and release**
-3. Choose: **Deployment pending**
-4. Add recipients: Approval groups or individuals
-5. **Save**
-
-### 8. Best Practices
-
-✅ **Multiple Approvers for Prod**: Require 2+ approvals for production
-
-✅ **Separate Approval Groups**: Different groups for QA/UAT/Prod
-
-✅ **Time Windows**: Restrict prod deployments to business hours or maintenance windows
-
-✅ **Audit Trail**: Azure DevOps logs all approvals with timestamp and approver
-
-✅ **Approval Timeout**: Set realistic timeouts (24-48 hours for prod)
-
-✅ **Reject with Comments**: Approvers should document rejection reasons
-
-✅ **Post-Deployment Validation**: Add monitoring checks after production deployment
-
-### 9. Example: Complete Approval Flow
-
-```
-Developer pushes to main branch
-        ↓
-Pipeline triggers automatically
-        ↓
-Preparation stage: Get components
-        ↓
-[Manual trigger: deployToQA=true]
-        ↓
-QA_Deployment: Deploy to QA
-        ↓
-QA_Testing: Run tests
-        ↓
-QA_APITesting: Validate APIs
-        ↓
-[Manual trigger: deployToUAT=true]
-        ↓
-UAT_Deployment: Deploy to UAT
-        ↓
-UAT_Testing: Run UAT tests
-        ↓
-UAT_APITesting: Validate UAT APIs
-        ↓
-UAT_Completion: Emulator tests
-        ↓
-[Manual trigger: deployToProd=true]
-        ↓
-⏸️  PAUSED: Waiting for Production approval
-        ↓
-Email sent to Boomi-Prod-Approvers group
-        ↓
-Approver reviews test results
-        ↓
-Approver clicks "Approve"
-        ↓
-Prod_Deployment: Deploy to production
-        ↓
-Cleanup: Test_Testing_Teardown
-        ↓
-✅ Pipeline completed
+**1. Check variable values:**
+```yaml
+- script: |
+    echo "SCRIPTS_HOME: $SCRIPTS_HOME"
+    echo "WORKSPACE: $WORKSPACE"
+    echo "baseURL: $baseURL"
+  displayName: 'Debug Variables'
 ```
 
-### 10. Troubleshooting Approvals
+**2. Inspect API responses:**
+```yaml
+- script: |
+    cat $(WORKSPACE)/out.json | jq .
+  displayName: 'Show API Response'
+  condition: always()
+```
 
-**Approval not triggered:**
-- Verify `environment: Production` is set in deployment job
-- Check environment exists in Azure DevOps
-- Ensure stage dependencies are correct
+**3. Enable verbose mode:**
+```yaml
+- script: |
+    export VERBOSE="true"
+    source $(SCRIPTS_HOME)/bin/deployPackages.sh ...
+  displayName: 'Deploy with Verbose Logging'
+```
 
-**Approvers not notified:**
-- Check notification settings
-- Verify approvers have permissions
-- Check spam/junk folders for emails
+### Agent Issues
 
-**Deployment skipped:**
-- Verify `deployToProd` parameter is `true`
-- Check conditional expressions in template
-- Review stage dependencies
+**Self-hosted agent missing dependencies:**
+```bash
+# On the agent machine
+sudo apt-get update
+sudo apt-get install -y jq curl bash git
+
+# Verify
+jq --version
+curl --version
+bash --version
+```
+
+**Microsoft-hosted agent:**
+- Ubuntu agents have jq and curl pre-installed
+- Use `ubuntu-latest` pool
 
 ---
 
 ## Next Steps
+
+- **Production Deployments** → [Build-Once-Deploy-Many Guide](BUILD_ONCE_PATTERN.md)
+- **Complete CLI Reference** → [CLI Reference](../../../docs/CLI_REFERENCE.md)
+- **Example Workflows** → [Examples Directory](../examples/)
+- **Architecture Details** → [Architecture Guide](../../../docs/ARCHITECTURE.md)
+
+---
+
+## Additional Resources
+
+- [Boomi AtomSphere API Documentation](https://help.boomi.com/bundle/integration/page/r-atm-AtomSphere_API_6730e8e4-b2db-4e94-a653-82ae1d05c78e.html)
+- [Azure DevOps YAML Schema](https://learn.microsoft.com/en-us/azure/devops/pipelines/yaml-schema)
+- [Azure DevOps Environments](https://learn.microsoft.com/en-us/azure/devops/pipelines/process/environments)

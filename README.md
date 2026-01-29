@@ -24,52 +24,49 @@ This repository was created to continue development and support for the Boomi CI
 
 ## 🚀 Quick Start
 
-### 1. Choose Your CI/CD Platform
+### Step 1: Choose Your Path
 
-Select your platform and follow the setup guide:
+Select your use case:
 
-| Platform | Setup Guide | Template Location |
-|----------|-------------|-------------------|
-| **Azure DevOps** | [Setup Guide](ci-templates/azuredevops/docs/SETUP.md) | [`ci-templates/azuredevops/`](ci-templates/azuredevops/) |
-| **Jenkins** | [Setup Guide](ci-templates/jenkins/docs/SETUP.md) | [`ci-templates/jenkins/`](ci-templates/jenkins/) |
-| **GitHub Actions** | [Setup Guide](ci-templates/github-actions/docs/SETUP.md) | [`ci-templates/github-actions/`](ci-templates/github-actions/) |
-| **CircleCI** | [Setup Guide](ci-templates/circleci/docs/SETUP.md) | [`ci-templates/circleci/`](ci-templates/circleci/) |
-| **GitLab CI** | [Setup Guide](ci-templates/gitlab-ci/docs/SETUP.md) | [`ci-templates/gitlab-ci/`](ci-templates/gitlab-ci/) |
-| **TeamCity** | [Setup Guide](ci-templates/teamcity/docs/SETUP.md) | [`ci-templates/teamcity/`](ci-templates/teamcity/) |
+| Use Case | Documentation |
+|----------|---------------|
+| **Azure DevOps** | [Azure DevOps Setup Guide](ci-templates/azuredevops/docs/SETUP.md) |
+| **Jenkins** | [Jenkins Setup Guide](ci-templates/jenkins/docs/SETUP.md) |
+| **GitHub Actions** | [GitHub Actions Setup Guide](ci-templates/github-actions/docs/SETUP.md) |
+| **CircleCI** | [CircleCI Setup Guide](ci-templates/circleci/docs/SETUP.md) |
+| **GitLab CI** | [GitLab CI Setup Guide](ci-templates/gitlab-ci/docs/SETUP.md) |
+| **TeamCity** | [TeamCity Setup Guide](ci-templates/teamcity/docs/SETUP.md) |
+| **Standalone CLI** | [Getting Started Guide](docs/GETTING_STARTED.md) |
 
-### 2. Install Dependencies
+### Step 2: Quick Install (Standalone CLI)
 
-On your CI/CD agent or local machine:
-
-```bash
-# Ubuntu/Debian
-sudo apt-get update
-sudo apt-get install -y jq curl bash
-
-# RHEL/CentOS
-sudo yum install -y jq curl bash
-
-# macOS
-brew install jq curl
-```
-
-### 3. Configure Authentication
-
-Set environment variables for Boomi API access:
+**For complete setup instructions, see [Getting Started Guide](docs/GETTING_STARTED.md)**
 
 ```bash
-export authToken="$(echo -n 'BOOMI_ACCOUNT.username:api_token' | base64)"
+# Install dependencies
+sudo apt-get install -y jq curl bash  # Ubuntu/Debian
+brew install jq curl                  # macOS
+
+# Clone repository
+git clone https://github.com/your-org/boomi-cicd-cli.git
+cd boomi-cicd-cli
+
+# Set core environment variables
+export SCRIPTS_HOME="$(pwd)/cli/scripts"
+export WORKSPACE="$(pwd)/workspace"
+export authToken="BOOMI_ACCOUNT.username:api_token"
 export baseURL="https://api.boomi.com/api/rest/v1/YOUR_ACCOUNT_ID/"
-export SCRIPTS_HOME="/path/to/cli/scripts"
-export WORKSPACE="/path/to/workspace"
+
+# Test setup
+cd $SCRIPTS_HOME
+source bin/publishAtom.sh > atoms.html
 ```
 
-### 4. Run Your First Deployment
+### Next Steps
 
-```bash
-cd ci-templates/<your-platform>/
-# Follow platform-specific instructions
-```
+- **Detailed CLI Setup** → [Getting Started Guide](docs/GETTING_STARTED.md)
+- **Complete Script Reference** → [CLI Reference](docs/CLI_REFERENCE.md)
+- **Framework Architecture** → [Architecture Guide](docs/ARCHITECTURE.md)
 
 ## 📁 Project Structure
 

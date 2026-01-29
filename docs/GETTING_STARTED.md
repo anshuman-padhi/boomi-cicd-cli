@@ -93,25 +93,118 @@ Save this token - you'll use it in every deployment.
 
 ## Step 4: Configure Environment Variables
 
-Create a configuration file for easy reuse:
+The CLI requires several environment variables. You can set them in a configuration file for easy reuse.
+
+### 4.1 Core Variables (Required)
+
+Create a configuration file:
 
 ```bash
 cat > ~/.boomi-cli-config << 'EOF'
-# Boomi CLI Configuration
-export authToken="<YOUR_BASE64_TOKEN>"
-export baseURL="https://api.boomi.com/api/rest/v1/<YOUR_ACCOUNT_ID>/"
-export SCRIPTS_HOME="/path/to/boomi-cicd-cli/cli/scripts"
-export WORKSPACE="/path/to/boomi-cicd-cli/workspace"
+# === Core Boomi Configuration ===
+export accountId="your-company-account-uuid"
+export authToken="BOOMI_TOKEN.username@company.com:aP1k3y02-mob1-b00M-M0b1-at0msph3r3aa"
+export baseURL="https://api.boomi.com/api/rest/v1/${accountId}/"
+
+# === API Headers ===
 export h1="Content-Type: application/json"
 export h2="Accept: application/json"
-export VERBOSE="true"
-export SLEEP_TIMER="0.2"
+
+# === Working Directories ===
+export SCRIPTS_HOME="/path/to/boomi-cicd-cli/cli/scripts"
+export WORKSPACE="/path/to/boomi-cicd-cli/workspace"
+
+# === Performance Settings ===
+export VERBOSE="false"           # Set to "true" only for debugging
+export SLEEP_TIMER=0.2           # Rate limiting: delays between API calls (5 requests/second max)
 EOF
 ```
 
-Load the configuration:
+> **⚠️ Important:** Replace `/path/to/boomi-cicd-cli` with your actual installation path
+
+### 4.2 Git Integration (Optional)
+
+Add Git configuration if you want component XML tracking:
+
+```bash
+cat >> ~/.boomi-cicd-config << 'EOF'
+
+# === Git Configuration (Optional) ===
+export gitRepoURL="https://github.com/yourorg/boomi-components.git"
+export gitUserName="CI Bot"
+export gitUserEmail="ci@company.com"
+export gitRepoName="boomi-components"
+export gitOption="CLONE"         # CLONE or default (creates tags)
+EOF
+```
+
+### 4.3 SonarQube Integration (Optional)
+
+Add SonarQube configuration for code quality scanning:
+
+```bash
+cat >> ~/.boomi-cli-config << 'EOF'
+
+# === SonarQube Configuration (Optional) ===
+export SONAR_HOST="/path/to/sonar-scanner"    # Local scanner path
+export sonarHostURL="https://sonar.company.com"
+export sonarHostToken="your-sonar-token"
+export sonarProjectKey="BoomiSonar"
+export sonarRulesFile="conf/BoomiSonarRules.xml"
+EOF
+```
+
+### 4.4 Using exports.sh Helper
+
+Alternatively, use the built-in exports helper:
+
+```bash
+cd cli/scripts
+# Edit bin/exports.sh with your values
+vi bin/exports.sh
+
+# Source the exports
+source bin/exports.sh
+```
+
+### 4.5 CI/CD Secret Integration
+
+For CI/CD pipelines, retrieve credentials from secret managers instead of config files:
+
+**AWS Systems Manager Parameter Store:**
+```bash
+export authToken=$(aws ssm get-parameter \
+  --region us-east-1 \
+  --with-decryption \
+  --output text \
+  --query Parameter.Value \
+  --name /boomi/authToken)
+```
+
+**Azure Key Vault:**
+```bash
+export authToken=$(az keyvault secret show \
+  --vault-name my-key-vault \
+  --name boomi-auth-token \
+  --query value -o tsv)
+```
+
+**HashiCorp Vault:**
+```bash
+export authToken=$(vault kv get -field=token secret/boomi/credentials)
+```
+
+### 4.6 Load Configuration
+
+Load your configuration before using the CLI:
+
 ```bash
 source ~/.boomi-cli-config
+```
+
+Or add to your `~/.bashrc` or `~/.zshrc` for automatic loading:
+```bash
+echo 'source ~/.boomi-cli-config' >> ~/.bashrc
 ```
 
 ## Step 5: Test the CLI
