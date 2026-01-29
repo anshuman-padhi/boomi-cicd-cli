@@ -1,0 +1,496 @@
+##########################################################
+# Custom Deployment Template for Boomi (QA -> UAT -> Prod) #
+##########################################################
+
+parameters:
+- name: packageVersion
+  type: string
+- name: apiComponentIds
+  type: string
+  default: ''
+- name: componentIds
+  type: string
+  default: ''
+- name: packageName
+  type: string
+- name: test_componentIds
+  type: string
+  default: ''
+- name: notes
+  type: string
+- name: postmanCollection
+  type: string
+  default: ''
+- name: sleepInMinutes
+  type: number
+  default: 0
+- name: deployToQA
+  type: boolean
+  default: false
+- name: deployToUAT
+  type: boolean
+  default: false
+- name: deployToProd
+  type: boolean
+  default: false
+- name: branchName
+  type: string
+  default: ''
+
+variables:
+  - group: boomicicd
+  - group: boomiruntime
+  - name: packageVersion
+    ${{ if eq(parameters.packageVersion, '0') }}:
+      value: ${{ parameters.packageName }}.$(Build.BuildNumber).BUILD
+    ${{ if ne(parameters.packageVersion, '0') }}:
+      value: ${{ parameters.packageVersion }}
+
+stages:
+###########################
+#        Preparation      #
+###########################
+  - stage: Preparation
+    jobs:
+      - job: get_components
+        steps:
+          - template: get_components.yaml
+            parameters:
+              #####################
+              # Common parameters #
+              #####################
+              h1: $(h1)
+              h2: $(h2)
+              baseURL: $(baseURL)
+              authToken: $(authToken)
+              VERBOSE: $(VERBOSE)
+              SLEEP_TIMER: $(SLEEP_TIMER)
+              WORKSPACE: $(WORKSPACE)
+              SCRIPTS_HOME: $(SCRIPTS_HOME)
+              #######################
+              # Specific parameters #
+              #######################
+              apiComponentIds: ${{ parameters.apiComponentIds }}
+              componentIds: ${{ parameters.componentIds }}
+              env: $(development_apim_envname) # Using Dev/QA env variable
+
+###########################
+#      QA: Deployment     #
+###########################
+  - ${{ if eq(parameters['deployToQA'], 'true') }}:
+    - stage: QA_Deployment
+      dependsOn: Preparation
+      jobs:
+        - job: deploy_packages
+          variables:
+            componentIds: $[stageDependencies.Preparation.get_components.outputs['output_variable.componentIds']]
+          steps:
+            - template: deploy_packages.yaml
+              parameters:
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                componentIds : $(componentIds)
+                env: $(development_apim_envname)
+                notes: ${{ parameters.notes }}
+                packageName : ${{ parameters.packageName }}
+                packageVersion: $(packageVersion)
+                extractComponentXmlFolder: 'componentsExtracted'
+                branchName: ${{ parameters.branchName }} # Pass branchName
+
+        - job: deploy_test_packages
+          dependsOn: deploy_packages
+          steps:
+            - ${{if parameters.test_componentIds}}:
+              - template: deploy_packages.yaml
+                parameters:
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  componentIds : ${{ parameters.test_componentIds }}
+                  env: $(development_apim_envname)
+                  notes: ${{ parameters.notes }}
+                  packageName : ${{ parameters.packageName }}
+                  packageVersion: $(packageVersion)
+                  extractComponentXmlFolder: ''
+                  branchName: ${{ parameters.branchName }} # Pass branchName
+
+#############################
+#       QA: Testing         #
+#############################
+    - stage: QA_Testing
+      dependsOn: QA_Deployment
+      jobs:
+        - job: execute_processes
+          steps:
+            - ${{if parameters.test_componentIds}}:
+              - template: execute_processes.yaml
+                parameters:
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  atomName: $(development_apim_atom)
+                  componentIds: ${{ parameters.test_componentIds }}
+        - job: validate_processes
+          dependsOn: execute_processes
+          steps:
+            - ${{if parameters.test_componentIds}}:
+              - script: |
+                  export sleepSeconds=$(( ${{ parameters.sleepInMinutes }} * 60 ))
+                  echo "Sleeping for ${sleepSeconds} seconds ..."
+                  sleep ${sleepSeconds}
+                  echo "Sleeping done"
+              - template: validate_processes.yaml
+                parameters:
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  atomName: $(development_apim_atom)
+                  componentIds: ${{ parameters.test_componentIds }}
+
+#############################
+#      QA: API Testing      #
+#############################
+    - stage: QA_APITesting
+      dependsOn: QA_Testing
+      jobs:
+        - job: call_secretmanager
+          steps:
+            - ${{if parameters.postmanCollection}}:
+              - template: call_secretmanager.yaml
+                parameters:
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  env: $(development_apim_envname)
+                  secretMode: 'postman'
+                  secretName: $(azureKeyvault)
+                  awsRegion: $(awsRegion)
+                  awsAccessKeyId: $(awsAccessKeyId)
+                  awsSecretKey: $(awsSecretKey)
+                  BOOMI_LIBRARIES: $(BOOMI_LIBRARIES)
+        - job: call_api
+          dependsOn: call_secretmanager
+          steps:
+            - ${{if parameters.postmanCollection}}:
+              - template: call_api.yaml
+                parameters:
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  postmanCollection : ${{ parameters.postmanCollection }}
+        - job: clean_up
+          dependsOn: call_api
+          steps:
+            - template: clean_up.yaml
+              parameters:
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+
+###########################
+#      UAT: Deployment    #
+###########################
+  - ${{ if eq(parameters['deployToUAT'], 'true') }}:
+    - stage: UAT_Deployment
+      dependsOn:
+        - Preparation
+        - QA_Deployment
+        - QA_Testing
+        - QA_APITesting
+      jobs:
+        - job: deploy_packages
+          variables:
+            componentIds: $[stageDependencies.Preparation.get_components.outputs['output_variable.componentIds']]
+          steps:
+            - template: deploy_packages.yaml
+              parameters:
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                componentIds : $(componentIds)
+                env: $(testing_apim_envname)
+                notes: ${{ parameters.notes }}
+                packageName : ${{ parameters.packageName }}
+                packageVersion: $(packageVersion)
+                extractComponentXmlFolder: 'componentsExtracted'
+                branchName: ${{ parameters.branchName }}
+
+        - job: deploy_test_packages
+          dependsOn: deploy_packages
+          steps:
+            - ${{if parameters.test_componentIds}}:
+              - template: deploy_packages.yaml
+                parameters:
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  componentIds : ${{ parameters.test_componentIds }}
+                  env: $(testing_apim_envname)
+                  notes: ${{ parameters.notes }}
+                  packageName : ${{ parameters.packageName }}
+                  packageVersion: $(packageVersion)
+                  extractComponentXmlFolder: ''
+                  branchName: ${{ parameters.branchName }}
+
+#############################
+#       UAT: Testing        #
+#############################
+    - stage: UAT_Testing
+      dependsOn: UAT_Deployment
+      jobs:
+        - job: execute_processes
+          steps:
+            - ${{if parameters.test_componentIds}}:
+              - template: execute_processes.yaml
+                parameters:
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  atomName: $(testing_apim_atom)
+                  componentIds: ${{ parameters.test_componentIds }}
+        - job: validate_processes
+          dependsOn: execute_processes
+          steps:
+            - ${{if parameters.test_componentIds}}:
+              - script: |
+                  export sleepSeconds=$(( ${{ parameters.sleepInMinutes }} * 60 ))
+                  echo "Sleeping for ${sleepSeconds} seconds ..."
+                  sleep ${sleepSeconds}
+                  echo "Sleeping done"
+              - template: validate_processes.yaml
+                parameters:
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  atomName: $(testing_apim_atom)
+                  componentIds: ${{ parameters.test_componentIds }}
+
+#############################
+#     UAT: API Testing      #
+#############################
+    - stage: UAT_APITesting
+      dependsOn: UAT_Testing
+      jobs:
+        - job: call_secretmanager
+          steps:
+            - ${{if parameters.postmanCollection}}:
+              - template: call_secretmanager.yaml
+                parameters:
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  env: $(testing_apim_envname)
+                  secretMode: 'postman'
+                  secretName: $(azureKeyvault)
+                  awsRegion: $(awsRegion)
+                  awsAccessKeyId: $(awsAccessKeyId)
+                  awsSecretKey: $(awsSecretKey)
+                  BOOMI_LIBRARIES: $(BOOMI_LIBRARIES)
+        - job: call_api
+          dependsOn: call_secretmanager
+          steps:
+            - ${{if parameters.postmanCollection}}:
+              - template: call_api.yaml
+                parameters:
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  postmanCollection : ${{ parameters.postmanCollection }}
+        - job: clean_up
+          dependsOn: call_api
+          steps:
+            - template: clean_up.yaml
+              parameters:
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+
+#############################
+#     UAT: Completion       #
+#############################
+    - stage: UAT_Completion
+      dependsOn: UAT_APITesting
+      jobs:
+        - job: emulator_test_packages
+          steps:
+            # Reusing execute_processes to run integration tests as 'emulator' tests
+            - ${{if parameters.test_componentIds}}:
+              - template: execute_processes.yaml
+                parameters:
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  atomName: $(testing_apim_atom) # Running on UAT Atom
+                  componentIds: ${{ parameters.test_componentIds }}
+        - job: clean_up
+          dependsOn: emulator_test_packages
+          steps:
+            - template: clean_up.yaml
+              parameters:
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+
+###########################
+#     Prod: Deployment    #
+###########################
+  - ${{ if eq(parameters['deployToProd'], 'true') }}:
+    - stage: Prod_Deployment
+      dependsOn: UAT_Completion
+      jobs:
+        - job: deploy_packages
+          variables:
+            componentIds: $[stageDependencies.Preparation.get_components.outputs['output_variable.componentIds']]
+          steps:
+            - template: deploy_packages.yaml
+              parameters:
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                componentIds : $(componentIds)
+                env: $(production_apim_envname)
+                notes: ${{ parameters.notes }}
+                packageName : ${{ parameters.packageName }}
+                packageVersion: $(packageVersion)
+                extractComponentXmlFolder: 'componentsExtracted'
+                branchName: ${{ parameters.branchName }}
+
+        - job: clean_up
+          dependsOn: deploy_packages
+          steps:
+            - template: clean_up.yaml
+              parameters:
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+
+###########################
+#  Test: Testing (Teardown) #
+###########################
+  - stage: Test_Testing_Teardown
+    dependsOn:
+      - QA_Deployment
+      - UAT_Deployment
+      - Prod_Deployment
+    condition: always() # Run even if deployments fail (cleanup)
+    jobs:
+      - job: undeploy_qa_packages
+        steps:
+            - template: undeploy_packages.yaml
+              parameters:
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                componentIds : ${{ parameters.test_componentIds }}
+                env: $(development_apim_envname)
+
+      - job: undeploy_uat_packages
+        steps:
+            - template: undeploy_packages.yaml
+              parameters:
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                componentIds : ${{ parameters.test_componentIds }}
+                env: $(testing_apim_envname)

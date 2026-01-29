@@ -1,0 +1,129 @@
+version: 2.1
+
+# Define reusable commands
+commands:
+  setup_boomi_cli:
+    description: "Setup Boomi CLI dependencies"
+    steps:
+      - run:
+          name: Install dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y jq curl
+      
+      - run:
+          name: Setup workspace
+          command: |
+            mkdir -p workspace
+            chmod +x cli/scripts/bin/*.sh
+
+  deploy_to_boomi:
+    description: "Deploy packages to Boomi"
+    parameters:
+      environment:
+        type: string
+        default: "Development"
+      component_ids:
+        type: string
+        default: ""
+      package_version:
+        type: string
+        default: "1.0.0"
+      notes:
+        type: string
+        default: "Deployed via CircleCI"
+    steps:
+      - run:
+          name: Deploy to Boomi << parameters.environment >>
+          command: |
+            export SCRIPTS_HOME=${CIRCLE_WORKING_DIRECTORY}/cli/scripts
+            export WORKSPACE=${CIRCLE_WORKING_DIRECTORY}/workspace
+            export h1="Content-Type: application/json"
+            export h2="Accept: application/json"
+            export VERBOSE="true"
+            export SLEEP_TIMER="0.2"
+            export authToken="${BOOMI_AUTH_TOKEN}"
+            export baseURL="${BOOMI_BASE_URL}"
+            export componentIds="<< parameters.component_ids >>"
+            export env="<< parameters.environment >>"
+            export packageVersion="<< parameters.package_version >>"
+            export notes="<< parameters.notes >>"
+            export BUILD_USER="${CIRCLE_USERNAME}"
+            export BUILD_USER_ID="${CIRCLE_USERNAME}"
+            export BUILD_EVENT="CircleCI"
+            
+            cd ci-templates/circleci/config
+            bash -xe ./deploy_packages.sh
+
+# Define workflows
+workflows:
+  version: 2
+  
+  deploy:
+    jobs:
+      - deploy-dev:
+          filters:
+            branches:
+              only: develop
+      
+      - deploy-uat:
+          filters:
+            branches:
+              only: /release\/.*/
+      
+      - deploy-prod:
+          filters:
+            branches:
+              only: main
+          requires:
+            - approve-prod
+
+      - approve-prod:
+          type: approval
+          filters:
+            branches:
+              only: main
+
+# Define jobs
+jobs:
+  deploy-dev:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_boomi_cli
+      - deploy_to_boomi:
+          environment: "Development"
+          component_ids: "${COMPONENT_IDS}"
+          package_version: "${CIRCLE_BUILD_NUM}"
+      - store_artifacts:
+          path: workspace
+          destination: deployment-artifacts
+
+  deploy-uat:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_boomi_cli
+      - deploy_to_boomi:
+          environment: "Testing"
+          component_ids: "${COMPONENT_IDS}"
+          package_version: "${CIRCLE_BUILD_NUM}"
+      - store_artifacts:
+          path: workspace
+          destination: deployment-artifacts
+
+  deploy-prod:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_boomi_cli
+      - deploy_to_boomi:
+          environment: "Production"
+          component_ids: "${COMPONENT_IDS}"
+          package_version: "${CIRCLE_BUILD_NUM}"
+      - store_artifacts:
+          path: workspace
+          destination: deployment-artifacts

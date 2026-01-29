@@ -1,0 +1,52 @@
+#####################################
+# Deployment Pipeline for Dummy API #
+#####################################
+
+parameters:
+  - name: packageVersion
+    displayName: Package Version, leave 0 for a new deployment OR put the Build Number to reuse an existing package. For instance put dummy-api.20230111.1.BUILD
+    type: string
+    default: 0
+  - name: notes
+    displayName: Notes
+    type: string
+    default: 'Dummy API Bundle'
+  - name: deployToQA
+    displayName: Deploy to QA
+    type: boolean
+    default: false
+  - name: deployToUAT
+    displayName: Deploy to UAT
+    type: boolean
+    default: false
+  - name: deployToProd
+    displayName: Deploy to Production
+    type: boolean
+    default: false
+  - name: branchName
+    displayName: Branch Name
+    type: string
+    default: 'master'
+
+trigger:
+  - master
+
+pool:
+  name: Default
+  demands:
+    - agent.os -equals Linux
+
+extends:
+  template: templates/custom_deploy_pipeline.yaml
+  parameters:
+    packageVersion: ${{ parameters.packageVersion }}
+    packageName: 'dummy-api'
+    componentIds: '2d72456d-baa8-4782-beb6-e18511bf9feb,ea579547-3b49-4881-9ed6-156d27ac38db'
+    test_componentIds: '4fd96edb-18c6-4436-8444-be99c4e91b67'
+    notes: ${{ parameters.notes }}
+    deployToQA: ${{ parameters.deployToQA }}
+    deployToUAT: ${{ parameters.deployToUAT }}
+    deployToProd: ${{ parameters.deployToProd }}
+    postmanCollection: 'dummy-api-basic-postman.json'
+    sleepInMinutes: 1
+    branchName: ${{ parameters.branchName }}

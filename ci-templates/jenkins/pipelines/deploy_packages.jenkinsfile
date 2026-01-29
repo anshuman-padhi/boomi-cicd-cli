@@ -1,0 +1,123 @@
+pipeline {
+    agent any
+
+    options {
+        // Equivalent to SLEEP_TIMER logic if needed globally, but script handles it.
+        timestamps()
+    }
+
+    parameters {
+        // Common Parameters
+        string(name: 'h1', defaultValue: 'Content-Type: application/json', description: 'Header 1')
+        string(name: 'h2', defaultValue: 'Accept: application/json', description: 'Header 2')
+        string(name: 'baseURL', defaultValue: 'https://api.boomi.com/api/', description: 'Boomi API Base URL')
+        string(name: 'authToken', defaultValue: '', description: 'Authentication Token (Base64 encoded user:token)')
+        string(name: 'VERBOSE', defaultValue: 'true', description: 'Enable verbose logging')
+        string(name: 'SLEEP_TIMER', defaultValue: '0.2', description: 'Sleep timer in seconds')
+        
+        // Specific Parameters
+        string(name: 'componentIds', defaultValue: '', description: 'Comma-separated list of Component IDs to deploy')
+        string(name: 'componentType', defaultValue: '', description: 'Component Type (optional)')
+        string(name: 'env', defaultValue: '', description: 'Target Environment Name or ID')
+        string(name: 'notes', defaultValue: 'Deployed via Jenkins', description: 'Deployment Notes')
+        string(name: 'packageVersion', defaultValue: '', description: 'Package Version')
+        string(name: 'listenerStatus', defaultValue: 'RUNNING', description: 'Listener Status (RUNNING/PAUSED)')
+        string(name: 'extractComponentXmlFolder', defaultValue: '', description: 'Folder to extract component XML')
+        string(name: 'branchName', defaultValue: 'master', description: 'Branch Name')
+    }
+
+    environment {
+        // Common variables expected by scripts
+        h1 = "${params.h1}"
+        h2 = "${params.h2}"
+        baseURL = "${params.baseURL}"
+        authToken = "${params.authToken}"
+        VERBOSE = "${params.VERBOSE}"
+        SLEEP_TIMER = "${params.SLEEP_TIMER}"
+        // SCRIPTS_HOME should point to the cli/scripts directory. 
+        // Assuming the repo structure is preserved in workspace.
+        SCRIPTS_HOME = "${WORKSPACE}/cli/scripts"
+        
+        // Specific variables
+        componentIds = "${params.componentIds}"
+        componentType = "${params.componentType}"
+        env = "${params.env}"
+        notes = "${params.notes}"
+        packageVersion = "${params.packageVersion}"
+        listenerStatus = "${params.listenerStatus}"
+        extractComponentXmlFolder = "${params.extractComponentXmlFolder}"
+        branchName = "${params.branchName}"
+        
+        // Metadata for scripts
+        BUILD_USER = "Jenkins User" // Customize with Build User Vars Plugin if available
+        BUILD_USER_ID = "jenkins_user"
+        BUILD_EVENT = "Manual_Trigger"
+    }
+
+    stages {
+        stage('Setup Workspace') {
+            steps {
+                script {
+                    echo "Setting up workspace..."
+                    sh 'mkdir -p ${WORKSPACE}/tmp' // Ensure temp dir exists if scripts use it relative to WORKSPACE
+                    
+                    // Make scripts executable
+                    sh 'chmod -R +x ${SCRIPTS_HOME}/bin/'
+                    sh 'chmod -R +x ${WORKSPACE}/azdevops_templates/'
+                }
+            }
+        }
+
+        stage('Deploy Packages') {
+            steps {
+                script {
+                    echo "Starting Deployment..."
+                    // The Azure DevOps template navigates to 'azdevops_templates' directory before running the script.
+                    // We mimic that behavior.
+                    dir("${WORKSPACE}/azdevops_templates") {
+                        sh '''
+                            #!/bin/bash
+                            # Ensure environment variables are exported
+                            export h1="${h1}"
+                            export h2="${h2}"
+                            export baseURL="${baseURL}"
+                            export authToken="${authToken}"
+                            export VERBOSE="${VERBOSE}"
+                            export SLEEP_TIMER="${SLEEP_TIMER}"
+                            export WORKSPACE="${WORKSPACE}"
+                            export SCRIPTS_HOME="${SCRIPTS_HOME}"
+                            export BUILD_USER="${BUILD_USER}"
+                            export BUILD_USER_ID="${BUILD_USER_ID}"
+                            export BUILD_EVENT="${BUILD_EVENT}"
+                            
+                            export componentIds="${componentIds}"
+                            export componentType="${componentType}"
+                            export env="${env}"
+                            export notes="${notes}"
+                            export packageVersion="${packageVersion}"
+                            export listenerStatus="${listenerStatus}"
+                            export extractComponentXmlFolder="${extractComponentXmlFolder}"
+                            export branchName="${branchName}"
+
+                            echo "Executing deploy_packages.sh from $(pwd)"
+                            bash -xe ./deploy_packages.sh
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                echo "Deployment stage completed. Checking for artifacts..."
+                // Archive logic if reports are generated
+                // archiveArtifacts artifacts: 'out.json, *.html', allowEmptyArchive: true
+            }
+        }
+        cleanup {
+            cleanWs()
+        }
+    }
+}

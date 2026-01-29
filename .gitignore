@@ -1,0 +1,54 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Workspace artifacts - runtime outputs
+workspace/
+*.json
+*.html
+*.xml
+!cli/scripts/json/*.json
+
+# Temporary files
+tmp/
+*.tmp
+*.log
+*.swp
+*.bak
+*~
+
+# Environment files - NEVER commit credentials!
+.env
+.boomi-cli-config
+**/secrets.sh
+**/*credentials*
+**/*password*
+**/*token*.txt
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.code-workspace
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Test artifacts
+test-results/
+coverage/
+*.test.json
+
+# Build artifacts
+dist/
+build/
+
+# SonarQube (download separately - see docs)
+sonarqube/sonar-scanner/
+sonarqube/*.zip
+
+# Node modules (if using any JS tooling)
+node_modules/
+package-lock.json

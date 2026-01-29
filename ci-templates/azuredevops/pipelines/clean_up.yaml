@@ -1,0 +1,25 @@
+###############################
+# Clean up Template for Boomi #
+###############################
+
+parameters:
+  #####################
+  # Common parameters #
+  #####################
+  h1 : ''
+  h2 : ''
+  baseURL : ''
+  authToken : ''
+  VERBOSE : ''
+  SLEEP_TIMER : ''
+  WORKSPACE : ''
+  SCRIPTS_HOME : ''
+  BUILD_USER_ID : ''
+
+steps:
+  - task: CmdLine@2
+    displayName: Command Line Script
+    inputs:
+      script: |
+        truncate -s 0 ${{ parameters.WORKSPACE }}/componentsExtracted.json
+        truncate -s 0 ${{ parameters.WORKSPACE }}/postman/My_Workspace.postman_globals.json

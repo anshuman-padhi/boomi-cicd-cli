@@ -1,0 +1,83 @@
+name: Boomi Deploy
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      componentIds:
+        description: 'Comma-separated Component IDs'
+        required: true
+        type: string
+      environment:
+        description: 'Target Environment'
+        required: true
+        type: choice
+        options:
+          - Development
+          - Testing
+          - Production
+      packageVersion:
+        description: 'Package Version'
+        required: true
+        default: '1.0.0'
+        type: string
+      notes:
+        description: 'Deployment Notes'
+        required: false
+        default: 'Deployed via GitHub Actions'
+        type: string
+
+env:
+  SCRIPTS_HOME: ${{ github.workspace }}/cli/scripts
+  WORKSPACE: ${{ github.workspace }}/workspace
+  h1: "Content-Type: application/json"
+  h2: "Accept: application/json"
+  VERBOSE: "true"
+  SLEEP_TIMER: "0.2"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq curl
+
+      - name: Setup workspace
+        run: |
+          mkdir -p ${{ env.WORKSPACE }}
+          chmod +x cli/scripts/bin/*.sh
+          chmod +x ci-templates/github-actions/workflows/*.sh
+
+      - name: Deploy to Boomi
+        env:
+          authToken: ${{ secrets.BOOMI_AUTH_TOKEN }}
+          baseURL: ${{ secrets.BOOMI_BASE_URL }}
+          componentIds: ${{ github.event.inputs.componentIds || 'default-component-id' }}
+          env: ${{ github.event.inputs.environment || 'Development' }}
+          packageVersion: ${{ github.event.inputs.packageVersion || github.run_number }}
+          notes: ${{ github.event.inputs.notes || 'Auto-deploy from GitHub Actions' }}
+          BUILD_USER: ${{ github.actor }}
+          BUILD_USER_ID: ${{ github.actor }}
+          BUILD_EVENT: ${{ github.event_name }}
+        run: |
+          cd ${{ github.workspace }}/ci-templates/github-actions/workflows
+          bash -xe ./deploy_packages.sh
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-logs
+          path: |
+            workspace/*.json
+            workspace/*.html
+          retention-days: 30

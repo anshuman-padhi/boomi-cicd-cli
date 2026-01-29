@@ -1,0 +1,8 @@
+{  
+ "ProcessProperties" : {
+  "@type" : "ProcessProperties",
+  "ProcessProperty" : ${processProperties}
+  }, 
+  "processId" : "${processId}",
+  "atomId" : "${atomId}"
+}

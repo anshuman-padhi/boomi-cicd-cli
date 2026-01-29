@@ -1,0 +1,56 @@
+#####################################
+# Execute Processes on a given Atom #
+#####################################
+
+parameters:
+  #####################
+  # Common parameters #
+  #####################
+  h1 : ''
+  h2 : ''
+  baseURL : ''
+  authToken : ''
+  VERBOSE : ''
+  SLEEP_TIMER : ''
+  WORKSPACE : ''
+  SCRIPTS_HOME : ''
+  BUILD_USER_ID : ''
+  #######################
+  # Specific parameters #
+  #######################
+  atomName : ''
+  componentIds : ''
+
+steps:
+  - script: |
+      ####################
+      # Common variables #
+      ####################
+      export h1="${{ parameters.h1 }}"
+      export h2="${{ parameters.h2 }}"
+      export baseURL="${{ parameters.baseURL }}"
+      export authToken="${{ parameters.authToken }}"
+      export VERBOSE="${{ parameters.VERBOSE }}"
+      export SLEEP_TIMER="${{ parameters.SLEEP_TIMER }}"
+      export WORKSPACE="${{ parameters.WORKSPACE }}"
+      export SCRIPTS_HOME="${{ parameters.SCRIPTS_HOME }}"
+      export BUILD_USER_ID="$(Build.Reason)"
+      ######################
+      # Specific variables #
+      ######################
+      export atomName="${{ parameters.atomName }}"
+      export componentIds=${{ parameters.componentIds }}
+      export artifactstagingdirectory="$(build.artifactstagingdirectory)"
+      export checkStatus=true
+      #############
+      # Execution #
+      #############
+      echo "ARA: Moving to $(Build.Repository.LocalPath)"
+      cd $(Build.Repository.LocalPath)
+      cd templates
+      bash -xe ./validate_processes.sh
+  - task: PublishTestResults@2
+    displayName: Publish Scheduled Process Test Results
+    inputs:
+      testResultsFiles: '**/*.xml'
+      searchFolder: $(build.artifactstagingdirectory)

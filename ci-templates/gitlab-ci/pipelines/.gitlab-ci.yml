@@ -1,0 +1,101 @@
+# GitLab CI/CD Pipeline for Boomi Deployments
+
+variables:
+  SCRIPTS_HOME: "$CI_PROJECT_DIR/cli/scripts"
+  WORKSPACE: "$CI_PROJECT_DIR/workspace"
+  H1: "Content-Type: application/json"
+  H2: "Accept: application/json"
+  VERBOSE: "true"
+  SLEEP_TIMER: "0.2"
+
+stages:
+  - build
+  - test
+  - deploy-dev
+  - deploy-uat
+  - deploy-prod
+
+# Template for deployment jobs
+.deploy_template: &deploy_template
+  image: ubuntu:latest
+  before_script:
+    - apt-get update && apt-get install -y jq curl bash
+    - mkdir -p $WORKSPACE
+    - chmod +x cli/scripts/bin/*.sh
+    - chmod +x ci-templates/gitlab-ci/pipelines/*.sh
+  script:
+    - |
+      export authToken="${BOOMI_AUTH_TOKEN}"
+      export baseURL="${BOOMI_BASE_URL}"
+      export h1="${H1}"
+      export h2="${H2}"
+      export VERBOSE="${VERBOSE}"
+      export SLEEP_TIMER="${SLEEP_TIMER}"
+      export BUILD_USER="${GITLAB_USER_LOGIN}"
+      export BUILD_USER_ID="${GITLAB_USER_EMAIL}"
+      export BUILD_EVENT="GitLab CI"
+      export componentIds="${COMPONENT_IDS}"
+      export env="${ENVIRONMENT}"
+      export packageVersion="${CI_PIPELINE_IID}"
+      export notes="Deployed via GitLab CI - ${CI_COMMIT_MESSAGE}"
+      cd ci-templates/gitlab-ci/pipelines
+      bash -xe ./deploy_packages.sh
+  artifacts:
+    paths:
+      - workspace/*.json
+      - workspace/*.html
+    expire_in: 30 days
+
+# Development deployment
+deploy:dev:
+  <<: *deploy_template
+  stage: deploy-dev
+  variables:
+    ENVIRONMENT: $DEV_ENV_ID
+  environment:
+    name: development
+    url: https://platform.boomi.com
+  only:
+    - develop
+  tags:
+    - docker
+
+# UAT deployment
+deploy:uat:
+  <<: *deploy_template
+  stage: deploy-uat
+  variables:
+    ENVIRONMENT: $UAT_ENV_ID
+  environment:
+    name: uat
+    url: https://platform.boomi.com
+  only:
+    - /^release\/.*$/
+  tags:
+    - docker
+
+# Production deployment with manual approval
+deploy:prod:
+  <<: *deploy_template
+  stage: deploy-prod
+  variables:
+    ENVIRONMENT: $PROD_ENV_ID
+  environment:
+    name: production
+    url: https://platform.boomi.com
+  when: manual
+  only:
+    - main
+  tags:
+    - docker
+
+# Optional: Rollback job
+rollback:prod:
+  image: ubuntu:latest
+  stage: deploy-prod
+  when: manual
+  only:
+    - main
+  script:
+    - echo "Rollback to previous version"
+    # Add rollback logic here

@@ -1,0 +1,50 @@
+###########################################
+# Package Undeployment Template for Boomi #
+###########################################
+
+parameters:
+  #####################
+  # Common parameters #
+  #####################
+  h1 : ''
+  h2 : ''
+  baseURL : ''
+  authToken : ''
+  VERBOSE : ''
+  SLEEP_TIMER : ''
+  WORKSPACE : ''
+  SCRIPTS_HOME : ''
+  #######################
+  # Specific parameters #
+  #######################
+  componentIds : []
+  env : ''
+
+steps:
+  - script: |
+      ####################
+      # Common variables #
+      ####################
+      export h1="${{ parameters.h1 }}"
+      export h2="${{ parameters.h2 }}"
+      export baseURL="${{ parameters.baseURL }}"
+      export authToken="${{ parameters.authToken }}"
+      export VERBOSE="${{ parameters.VERBOSE }}"
+      export SLEEP_TIMER="${{ parameters.SLEEP_TIMER }}"
+      export WORKSPACE="${{ parameters.WORKSPACE }}"
+      export SCRIPTS_HOME="${{ parameters.SCRIPTS_HOME }}"
+      export BUILD_USER="$(Build.RequestedFor)"
+      export BUILD_USER_ID="$(Build.RequestedForEmail)"
+      export BUILD_EVENT="$(Build.Reason)"
+      ######################
+      # Specific variables #
+      ######################
+      export componentIds=${{ parameters.componentIds }}
+      export env="${{ parameters.env }}"
+      #############
+      # Execution #
+      #############
+      echo "ARA: Moving to $(Build.Repository.LocalPath)"
+      cd $(Build.Repository.LocalPath)
+      cd templates
+      bash -xe ./undeploy_packages.sh

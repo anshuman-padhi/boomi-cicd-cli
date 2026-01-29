@@ -1,0 +1,7 @@
+{  
+	"processId" : "${processId}",
+  "atomId" : "${atomId}",
+  "runSimultaneously": false, 
+  "packagedDeployment": true, 
+	"testId": 0
+}

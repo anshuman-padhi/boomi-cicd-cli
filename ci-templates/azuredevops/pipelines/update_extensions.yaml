@@ -1,0 +1,50 @@
+########################################
+# Extensions Update Template for Boomi #
+########################################
+
+parameters:
+  #####################
+  # Common parameters #
+  #####################
+  h1 : ''
+  h2 : ''
+  baseURL : ''
+  authToken : ''
+  VERBOSE : ''
+  SLEEP_TIMER : ''
+  WORKSPACE : ''
+  SCRIPTS_HOME : ''
+  BUILD_USER_ID : ''
+  #######################
+  # Specific parameters #
+  #######################
+  env : ''
+  extensionJson : ''
+
+steps:
+  - script: |
+      ####################
+      # Common variables #
+      ####################
+      export h1="${{ parameters.h1 }}"
+      export h2="${{ parameters.h2 }}"
+      export baseURL="${{ parameters.baseURL }}"
+      export authToken="${{ parameters.authToken }}"
+      export VERBOSE="${{ parameters.VERBOSE }}"
+      export SLEEP_TIMER="${{ parameters.SLEEP_TIMER }}"
+      export WORKSPACE="${{ parameters.WORKSPACE }}"
+      export SCRIPTS_HOME="${{ parameters.SCRIPTS_HOME }}"
+      export BUILD_USER_ID="$(Build.Reason)"
+      ######################
+      # Specific variables #
+      ######################
+      export env="${{ parameters.env }}"
+      cd $WORKSPACE
+      export extensionJson="componentsExtracted.json"
+      #############
+      # Execution #
+      #############
+      echo "ARA: Moving to $(Build.Repository.LocalPath)"
+      cd $(Build.Repository.LocalPath)
+      cd templates
+      bash -xe ./update_extensions.sh

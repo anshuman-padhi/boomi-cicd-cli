@@ -1,0 +1,808 @@
+##########################################################
+# Base Deployment Template for Boomi - APIM Environments #
+##########################################################
+
+parameters:
+- name: packageVersion
+  type: string
+- name: apiComponentIds
+  type: string
+  default: ''
+- name: componentIds
+  type: string
+  default: ''
+- name: packageName
+  type: string
+- name: test_componentIds
+  type: string
+  default: ''
+- name: notes
+  type: string
+- name: postmanCollection
+  type: string
+  default: ''
+- name: sleepInMinutes
+  type: number
+  default: 0
+- name: deployToDev
+  type: boolean
+  default: false
+- name: deployToQAT
+  type: boolean
+  default: false
+- name: deployToProd
+  type: boolean
+  default: false
+
+variables:
+  - group: boomicicd
+  - group: boomiruntime
+  - name: packageVersion
+    ${{ if eq(parameters.packageVersion, '0') }}:
+      value: ${{ parameters.packageName }}.$(Build.BuildNumber).BUILD
+    ${{ if ne(parameters.packageVersion, '0') }}:
+      value: ${{ parameters.packageVersion }}
+
+stages:
+###########################
+#        Preparation      #
+###########################
+  - stage: Preparation
+    jobs:
+      - job: get_components
+        steps:
+          - template: get_components.yaml
+            parameters:
+              #####################
+              # Common parameters #
+              #####################
+              h1: $(h1)
+              h2: $(h2)
+              baseURL: $(baseURL)
+              authToken: $(authToken)
+              VERBOSE: $(VERBOSE)
+              SLEEP_TIMER: $(SLEEP_TIMER)
+              WORKSPACE: $(WORKSPACE)
+              SCRIPTS_HOME: $(SCRIPTS_HOME)
+              #######################
+              # Specific parameters #
+              #######################
+              apiComponentIds: ${{ parameters.apiComponentIds }}
+              componentIds: ${{ parameters.componentIds }}
+              env: $(development_apim_envname)
+###########################
+# Development: Deployment #
+###########################
+  - ${{ if eq(parameters['deployToDev'], 'true') }}:
+    - stage: Dev_Deployment
+      dependsOn: Preparation
+      jobs:
+        - job: deploy_packages
+          variables:
+            componentIds: $[stageDependencies.Preparation.get_components.outputs['output_variable.componentIds']]
+          steps:
+            - template: deploy_packages.yaml
+              parameters:
+                #####################
+                # Common parameters #
+                #####################
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                #######################
+                # Specific parameters #
+                #######################
+                componentIds : $(componentIds)
+                env: $(development_apim_envname)
+                notes: ${{ parameters.notes }}
+                packageName : ${{ parameters.packageName }}
+                packageVersion: $(packageVersion)
+                extractComponentXmlFolder: 'componentsExtracted'
+                #####################
+                # End of parameters #
+                #####################
+        - job: deploy_test_packages
+          dependsOn: deploy_packages
+          steps:
+            - ${{if parameters.test_componentIds}}:
+              - template: deploy_packages.yaml
+                parameters:
+                  #####################
+                  # Common parameters #
+                  #####################
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  #######################
+                  # Specific parameters #
+                  #######################
+                  componentIds : ${{ parameters.test_componentIds }}
+                  env: $(development_apim_envname)
+                  notes: ${{ parameters.notes }}
+                  packageName : ${{ parameters.packageName }}
+                  packageVersion: $(packageVersion)
+                  extractComponentXmlFolder: ''
+                  #####################
+                  # End of parameters #
+                  #####################
+  #      - job: retrieve_extensions
+  #        dependsOn: deploy_packages
+  #        steps:
+  #          - template: retrieve_extensions.yaml
+  #            parameters:
+  #              #####################
+  #              # Common parameters #
+  #              #####################
+  #              h1: $(h1)
+  #              h2: $(h2)
+  #              baseURL: $(baseURL)
+  #              authToken: $(authToken)
+  #              VERBOSE: $(VERBOSE)
+  #              SLEEP_TIMER: $(SLEEP_TIMER)
+  #              WORKSPACE: $(WORKSPACE)
+  #              SCRIPTS_HOME: $(SCRIPTS_HOME)
+  #              #######################
+  #              # Specific parameters #
+  #              #######################
+  #              env: $(development_apim_envname)
+  #              #####################
+  #              # End of parameters #
+  #              #####################
+  #      - job: call_secretmanager
+  #        dependsOn: retrieve_extensions
+  #        steps:
+  #          - template: call_secretmanager.yaml
+  #            parameters:
+  #              #####################
+  #              # Common parameters #
+  #              #####################
+  #              h1 : $(h1)
+  #              h2 : $(h2)
+  #              baseURL : $(baseURL)
+  #              authToken: $(authToken)
+  #              VERBOSE: $(VERBOSE)
+  #              SLEEP_TIMER: $(SLEEP_TIMER)
+  #              WORKSPACE: $(WORKSPACE)
+  #              SCRIPTS_HOME: $(SCRIPTS_HOME)
+  #              #######################
+  #              # Specific parameters #
+  #              #######################
+  #              env: $(development_apim_envname)
+  #              secretMode: 'boomi'
+  #              secretName: $(azureKeyvault)
+  #              awsRegion: $(awsRegion)
+  #              awsAccessKeyId: $(awsAccessKeyId)
+  #              awsSecretKey: $(awsSecretKey)
+  #              BOOMI_LIBRARIES: $(BOOMI_LIBRARIES)
+  #              #####################
+  #              # End of parameters #
+  #              #####################
+  #      - job: update_extensions
+  #        dependsOn: call_secretmanager
+  #        steps:
+  #          - template: update_extensions.yaml
+  #            parameters:
+  #              #####################
+  #              # Common parameters #
+  #              #####################
+  #              h1 : $(h1)
+  #              h2 : $(h2)
+  #              baseURL : $(baseURL)
+  #              authToken: $(authToken)
+  #              VERBOSE: $(VERBOSE)
+  #              SLEEP_TIMER: $(SLEEP_TIMER)
+  #              WORKSPACE: $(WORKSPACE)
+  #              SCRIPTS_HOME: $(SCRIPTS_HOME)
+  #              #######################
+  #              # Specific parameters #
+  #              #######################
+  #              env: $(development_apim_envname)
+  #              #####################
+  #              # End of parameters #
+  #              #####################
+#############################
+# Development: Unit Testing #
+#############################
+  - ${{ if eq(parameters['deployToDev'], 'true') }}:
+    - stage: Dev_UnitTesting
+      dependsOn: Dev_Deployment
+      jobs:
+        - job: execute_processes
+          steps:
+            - ${{if parameters.test_componentIds}}:
+              - template: execute_processes.yaml
+                parameters:
+                  #####################
+                  # Common parameters #
+                  #####################
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  #######################
+                  # Specific parameters #
+                  #######################
+                  atomName: $(development_apim_atom)
+                  componentIds: ${{ parameters.test_componentIds }}
+                  #####################
+                  # End of parameters #
+                  #####################
+        - job: validate_processes
+          dependsOn: execute_processes
+          steps:
+            - ${{if parameters.test_componentIds}}:
+              - script: |
+                  export sleepSeconds=$(( ${{ parameters.sleepInMinutes }} * 60 ))
+                  echo "Sleeping for ${sleepSeconds} seconds ..."
+                  sleep ${sleepSeconds}
+                  echo "Sleeping done"
+              - template: validate_processes.yaml
+                parameters:
+                  #####################
+                  # Common parameters #
+                  #####################
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  #######################
+                  # Specific parameters #
+                  #######################
+                  atomName: $(development_apim_atom)
+                  componentIds: ${{ parameters.test_componentIds }}
+                  #####################
+                  # End of parameters #
+                  #####################
+#############################
+# Development: API Testing #
+#############################
+  - ${{ if eq(parameters['deployToDev'], 'true') }}:
+    - stage: Dev_APITesting
+      dependsOn: Dev_Deployment
+      jobs:
+        - job: call_secretmanager
+          steps:
+            - ${{if parameters.postmanCollection}}:
+              - template: call_secretmanager.yaml
+                parameters:
+                  #####################
+                  # Common parameters #
+                  #####################
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  #######################
+                  # Specific parameters #
+                  #######################
+                  env: $(development_apim_envname)
+                  secretMode: 'postman'
+                  secretName: $(azureKeyvault)
+                  awsRegion: $(awsRegion)
+                  awsAccessKeyId: $(awsAccessKeyId)
+                  awsSecretKey: $(awsSecretKey)
+                  BOOMI_LIBRARIES: $(BOOMI_LIBRARIES)
+                  #####################
+                  # End of parameters #
+                  #####################
+        - job: call_api
+          dependsOn: call_secretmanager
+          steps:
+            - ${{if parameters.postmanCollection}}:
+              - template: call_api.yaml
+                parameters:
+                  #####################
+                  # Common parameters #
+                  #####################
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  #######################
+                  # Specific parameters #
+                  #######################
+                  postmanCollection : ${{ parameters.postmanCollection }}
+                  #####################
+                  # End of parameters #
+                  #####################
+        - job: clean_up
+          dependsOn: call_api
+          steps:
+            - template: clean_up.yaml
+              parameters:
+                #####################
+                # Common parameters #
+                #####################
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                #######################
+                # Specific parameters #
+                #######################
+                #####################
+                # End of parameters #
+                #####################
+####################
+# Test: Deployment #
+####################
+  - ${{ if eq(parameters['deployToQAT'], 'true') }}:
+    - stage: Test_Deployment
+      dependsOn:
+        - Preparation
+        - Dev_UnitTesting
+        - Dev_APITesting
+      jobs:
+        - job: deploy_packages
+          variables:
+            componentIds: $[stageDependencies.Preparation.get_components.outputs['output_variable.componentIds']]
+          steps:
+            - template: deploy_packages.yaml
+              parameters:
+                #####################
+                # Common parameters #
+                #####################
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                #######################
+                # Specific parameters #
+                #######################
+                componentIds : $(componentIds)
+                env: $(testing_apim_envname)
+                notes: ${{ parameters.notes }}
+                packageName : ${{ parameters.packageName }}
+                packageVersion: $(packageVersion)
+                extractComponentXmlFolder: 'componentsExtracted'
+                #####################
+                # End of parameters #
+                #####################
+        - job: deploy_test_packages
+          dependsOn: deploy_packages
+          steps:
+            - ${{if parameters.test_componentIds}}:
+              - template: deploy_packages.yaml
+                parameters:
+                  #####################
+                  # Common parameters #
+                  #####################
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  #######################
+                  # Specific parameters #
+                  #######################
+                  componentIds : ${{ parameters.test_componentIds }}
+                  env: $(testing_apim_envname)
+                  notes: ${{ parameters.notes }}
+                  packageName : ${{ parameters.packageName }}
+                  packageVersion: $(packageVersion)
+                  extractComponentXmlFolder: ''
+                  #####################
+                  # End of parameters #
+                  #####################
+  #      - job: retrieve_extensions
+  #        dependsOn: deploy_packages
+  #        steps:
+  #          - template: retrieve_extensions.yaml
+  #            parameters:
+  #              #####################
+  #              # Common parameters #
+  #              #####################
+  #              h1: $(h1)
+  #              h2: $(h2)
+  #              baseURL: $(baseURL)
+  #              authToken: $(authToken)
+  #              VERBOSE: $(VERBOSE)
+  #              SLEEP_TIMER: $(SLEEP_TIMER)
+  #              WORKSPACE: $(WORKSPACE)
+  #              SCRIPTS_HOME: $(SCRIPTS_HOME)
+  #              #######################
+  #              # Specific parameters #
+  #              #######################
+  #              env: $(testing_apim_envname)
+  #              #####################
+  #              # End of parameters #
+  #              #####################
+  #      - job: call_secretmanager
+  #        dependsOn: retrieve_extensions
+  #        steps:
+  #          - template: call_secretmanager.yaml
+  #            parameters:
+  #              #####################
+  #              # Common parameters #
+  #              #####################
+  #              h1 : $(h1)
+  #              h2 : $(h2)
+  #              baseURL : $(baseURL)
+  #              authToken: $(authToken)
+  #              VERBOSE: $(VERBOSE)
+  #              SLEEP_TIMER: $(SLEEP_TIMER)
+  #              WORKSPACE: $(WORKSPACE)
+  #              SCRIPTS_HOME: $(SCRIPTS_HOME)
+  #              #######################
+  #              # Specific parameters #
+  #              #######################
+  #              env: $(testing_apim_envname)
+  #              secretMode: 'boomi'
+  #              secretName: $(azureKeyvault)
+  #              awsRegion: $(awsRegion)
+  #              awsAccessKeyId: $(awsAccessKeyId)
+  #              awsSecretKey: $(awsSecretKey)
+  #              BOOMI_LIBRARIES: $(BOOMI_LIBRARIES)
+  #              #####################
+  #              # End of parameters #
+  #              #####################
+  #      - job: update_extensions
+  #        dependsOn: call_secretmanager
+  #        steps:
+  #          - template: update_extensions.yaml
+  #            parameters:
+  #              #####################
+  #              # Common parameters #
+  #              #####################
+  #              h1 : $(h1)
+  #              h2 : $(h2)
+  #              baseURL : $(baseURL)
+  #              authToken: $(authToken)
+  #              VERBOSE: $(VERBOSE)
+  #              SLEEP_TIMER: $(SLEEP_TIMER)
+  #              WORKSPACE: $(WORKSPACE)
+  #              SCRIPTS_HOME: $(SCRIPTS_HOME)
+  #              #######################
+  #              # Specific parameters #
+  #              #######################
+  #              env: $(testing_apim_envname)
+  #              #####################
+  #              # End of parameters #
+  #              #####################
+#############################
+# Test: Unit Testing #
+#############################
+  - ${{ if eq(parameters['deployToQAT'], 'true') }}:
+    - stage: Test_UnitTesting
+      dependsOn: Test_Deployment
+      jobs:
+        - job: execute_processes
+          steps:
+            - ${{if parameters.test_componentIds}}:
+              - template: execute_processes.yaml
+                parameters:
+                  #####################
+                  # Common parameters #
+                  #####################
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  #######################
+                  # Specific parameters #
+                  #######################
+                  atomName: $(testing_apim_atom)
+                  componentIds: ${{ parameters.test_componentIds }}
+                  #####################
+                  # End of parameters #
+                  #####################
+        - job: validate_processes
+          dependsOn: execute_processes
+          steps:
+            - ${{if parameters.test_componentIds}}:
+              - script: |
+                  export sleepSeconds=$(( ${{ parameters.sleepInMinutes }} * 60 ))
+                  echo "Sleeping for ${sleepSeconds} seconds ..."
+                  sleep ${sleepSeconds}
+                  echo "Sleeping done"
+              - template: validate_processes.yaml
+                parameters:
+                  #####################
+                  # Common parameters #
+                  #####################
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  #######################
+                  # Specific parameters #
+                  #######################
+                  atomName: $(testing_apim_atom)
+                  componentIds: ${{ parameters.test_componentIds }}
+                  #####################
+                  # End of parameters #
+                  #####################
+#############################
+# Test: API Testing #
+#############################
+  - ${{ if eq(parameters['deployToQAT'], 'true') }}:
+    - stage: Test_APITesting
+      dependsOn: Test_Deployment
+      jobs:
+        - job: call_secretmanager
+          steps:
+            - ${{if parameters.postmanCollection}}:
+              - template: call_secretmanager.yaml
+                parameters:
+                  #####################
+                  # Common parameters #
+                  #####################
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  #######################
+                  # Specific parameters #
+                  #######################
+                  env: $(testing_apim_envname)
+                  secretMode: 'postman'
+                  secretName: $(azureKeyvault)
+                  awsRegion: $(awsRegion)
+                  awsAccessKeyId: $(awsAccessKeyId)
+                  awsSecretKey: $(awsSecretKey)
+                  BOOMI_LIBRARIES: $(BOOMI_LIBRARIES)
+                  #####################
+                  # End of parameters #
+                  #####################
+        - job: call_api
+          dependsOn: call_secretmanager
+          steps:
+            - ${{if parameters.postmanCollection}}:
+              - template: call_api.yaml
+                parameters:
+                  #####################
+                  # Common parameters #
+                  #####################
+                  h1 : $(h1)
+                  h2 : $(h2)
+                  baseURL : $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  #######################
+                  # Specific parameters #
+                  #######################
+                  postmanCollection : ${{ parameters.postmanCollection }}
+                  #####################
+                  # End of parameters #
+                  #####################
+        - job: clean_up
+          dependsOn: call_api
+          steps:
+            - template: clean_up.yaml
+              parameters:
+                #####################
+                # Common parameters #
+                #####################
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                #######################
+                # Specific parameters #
+                #######################
+                #####################
+                # End of parameters #
+                #####################
+####################
+# Prod: Deployment #
+####################
+  - ${{ if eq(parameters['deployToProd'], 'true') }}:
+    - stage: Prod_Deployment
+      dependsOn:
+        - Preparation
+        - Test_Deployment
+      jobs:
+        - job: deploy_packages
+          variables:
+            componentIds: $[stageDependencies.Preparation.get_components.outputs['output_variable.componentIds']]
+          steps:
+            - template: deploy_packages.yaml
+              parameters:
+                #####################
+                # Common parameters #
+                #####################
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                #######################
+                # Specific parameters #
+                #######################
+                componentIds : $(componentIds)
+                env: $(production_apim_envname)
+                notes: ${{ parameters.notes }}
+                packageName : ${{ parameters.packageName }}
+                packageVersion: $(packageVersion)
+                extractComponentXmlFolder: 'componentsExtracted'
+                #####################
+                # End of parameters #
+                #####################
+        - job: retrieve_extensions
+          dependsOn: deploy_packages
+          steps:
+            - template: retrieve_extensions.yaml
+              parameters:
+                #####################
+                # Common parameters #
+                #####################
+                h1: $(h1)
+                h2: $(h2)
+                baseURL: $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                #######################
+                # Specific parameters #
+                #######################
+                env: $(production_apim_envname)
+                #####################
+                # End of parameters #
+                #####################
+        - job: call_secretmanager
+          dependsOn: retrieve_extensions
+          steps:
+            - template: call_secretmanager.yaml
+              parameters:
+                #####################
+                # Common parameters #
+                #####################
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                #######################
+                # Specific parameters #
+                #######################
+                env: $(production_apim_envname)
+                secretMode: 'boomi'
+                secretName: $(azureKeyvault)
+                awsRegion: $(awsRegion)
+                awsAccessKeyId: $(awsAccessKeyId)
+                awsSecretKey: $(awsSecretKey)
+                BOOMI_LIBRARIES: $(BOOMI_LIBRARIES)
+                #####################
+                # End of parameters #
+                #####################
+        - job: update_extensions
+          dependsOn: call_secretmanager
+          steps:
+            - template: update_extensions.yaml
+              parameters:
+                #####################
+                # Common parameters #
+                #####################
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                #######################
+                # Specific parameters #
+                #######################
+                env: $(production_apim_envname)
+                #####################
+                # End of parameters #
+                #####################
+        - job: clean_up
+          dependsOn: update_extensions
+          steps:
+            - template: clean_up.yaml
+              parameters:
+                #####################
+                # Common parameters #
+                #####################
+                h1 : $(h1)
+                h2 : $(h2)
+                baseURL : $(baseURL)
+                authToken: $(authToken)
+                VERBOSE: $(VERBOSE)
+                SLEEP_TIMER: $(SLEEP_TIMER)
+                WORKSPACE: $(WORKSPACE)
+                SCRIPTS_HOME: $(SCRIPTS_HOME)
+                #######################
+                # Specific parameters #
+                #######################
+                #####################
+                # End of parameters #
+                #####################
+  ####################
+  # Test: Deployment #
+  ####################
+  # - stage: Code_Quality
+  #   dependsOn:
+  #     - Test_Deployment
+  #   jobs:
+  #     - job: sonar_scan
+  #       steps:
+  #         - template: sonar_scan.yaml
+  #           parameters:
+  #             #####################
+  #             # Common parameters #
+  #             #####################
+  #             h1: $(h1)
+  #             h2: $(h2)
+  #             baseURL: $(baseURL)
+  #             authToken: $(authToken)
+  #             VERBOSE: $(VERBOSE)
+  #             SLEEP_TIMER: $(SLEEP_TIMER)
+  #             WORKSPACE: $(WORKSPACE)
+  #             SCRIPTS_HOME: $(SCRIPTS_HOME)
+  #             #######################
+  #             # Specific parameters #
+  #             #######################
+  #             sonarProjectKey: ${{ parameters.packageName }}
+  #             baseFolder: $(WORKSPACE)/componentsExtracted
+  #             sonarHostURL: $(sonarHostURL)
+  #             sonarToken: $(sonarToken)
+  #             #####################
+  #             # End of parameters #
+  #             #####################

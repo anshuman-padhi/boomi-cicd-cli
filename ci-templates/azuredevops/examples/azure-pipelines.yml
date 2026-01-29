@@ -1,0 +1,43 @@
+trigger:
+  - main
+
+pool:
+  name: 'Default' # User specified local agent
+
+variables:
+  - group: boomicicd
+  - group: boomiruntime
+  - name: SCRIPTS_HOME
+    value: $(Build.SourcesDirectory)/cli/scripts
+  - name: WORKSPACE
+    value: $(Build.SourcesDirectory)/workspace
+  # Default values for common script variables
+  - name: h1
+    value: "Content-Type: application/json"
+  - name: h2
+    value: "Accept: application/json"
+  - name: VERBOSE
+    value: "true"
+  - name: SLEEP_TIMER
+    value: "0.2"
+
+steps:
+  - script: |
+      mkdir -p $(WORKSPACE)
+      chmod +x $(SCRIPTS_HOME)/bin/*.sh
+      chmod +x $(Build.SourcesDirectory)/azdevops_templates/*.sh
+    displayName: 'Prepare Workspace and Scripts'
+
+  - template: azdevops_templates/custom_deploy_pipeline.yaml
+    parameters:
+      packageName: 'BoomiPackage'
+      packageVersion: '$(Build.BuildNumber)'
+      notes: 'Custom Pipeline Deployment'
+      deployToQA: true
+      deployToUAT: true
+      deployToProd: false
+      # Comma-separated component IDs to deploy
+      componentIds: '' 
+      # Comma-separated test component IDs
+      test_componentIds: ''
+      branchName: 'master' 

@@ -1,0 +1,35 @@
+###############################
+# Call API Template for Boomi #
+###############################
+
+parameters:
+  #####################
+  # Common parameters #
+  #####################
+  h1 : ''
+  h2 : ''
+  baseURL : ''
+  authToken : ''
+  VERBOSE : ''
+  SLEEP_TIMER : ''
+  WORKSPACE : ''
+  SCRIPTS_HOME : ''
+  BUILD_USER_ID : ''
+  #######################
+  # Specific parameters #
+  #######################
+  postmanCollection : ''
+
+steps:
+  - task: CmdLine@2
+    displayName: Command Line Script
+    inputs:
+      script: |
+        export postmanCollection="$(Build.Repository.LocalPath)/${{ parameters.postmanCollection }}"
+        export postmanGlobals="${{ parameters.WORKSPACE }}/postman/My_Workspace.postman_globals.json"
+        newman run "$postmanCollection" --globals "$postmanGlobals" -r junit,html --reporter-junit-export $(build.artifactstagingdirectory)/results/newman.xml
+  - task: PublishTestResults@2
+    displayName: Publish API Test Results
+    inputs:
+      testResultsFiles: '**/*.xml'
+      searchFolder: $(build.artifactstagingdirectory)
