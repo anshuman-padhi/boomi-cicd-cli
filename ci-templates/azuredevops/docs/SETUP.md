@@ -165,16 +165,49 @@ The `custom_deploy_pipeline.yaml` template provides a **production-ready, multi-
 
 The custom pipeline orchestrates deployments through multiple environments:
 
-```
-Preparation → QA → UAT → Production
-    ↓          ↓     ↓         ↓
-Get Components → Deploy → Deploy → Deploy
-                 ↓        ↓
-                Test    Test
-                 ↓        ↓
-              API Test  API Test
-                         ↓
-                   Emulator Test
+```mermaid
+flowchart TB
+    Start([Pipeline Start])
+    
+    subgraph Preparation
+        GetComp[Get Components<br/>from Boomi]
+    end
+    
+    subgraph QA["QA Environment"]
+        direction TB
+        QADeploy[Deploy Packages]
+        QATest[Execute Tests]
+        QAAPITest[API Testing<br/>Postman]
+        QADeploy --> QATest --> QAAPITest
+    end
+    
+    subgraph UAT["UAT Environment"]
+        direction TB
+        UATDeploy[Deploy Packages]
+        UATTest[Execute Tests]
+        UATAPITest[API Testing<br/>Postman]
+        UATEmulator[Emulator Tests]
+        UATDeploy --> UATTest --> UATAPITest --> UATEmulator
+    end
+    
+    subgraph Production["Production Environment"]
+        ProdDeploy[Deploy Packages<br/>⚠️ Requires Approval]
+    end
+    
+    Cleanup([Teardown & Cleanup])
+    
+    Start --> Preparation
+    Preparation --> QA
+    QA --> UAT
+    UAT --> Production
+    Production --> Cleanup
+    
+    style Preparation fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style QA fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style UAT fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style Production fill:#ffebee,stroke:#c62828,stroke-width:2px
+    style Start fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style Cleanup fill:#fafafa,stroke:#616161,stroke-width:2px
 ```
 
 **Stages:**
