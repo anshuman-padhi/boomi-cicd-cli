@@ -173,6 +173,7 @@ See [CLI Reference](docs/CLI_REFERENCE.md) for complete documentation.
 ```mermaid
 flowchart TB
     subgraph cicd["CI/CD Platform Layer"]
+        direction LR
         Jenkins["Jenkins"]
         ADO["Azure DevOps"]
         GHA["GitHub Actions"]
