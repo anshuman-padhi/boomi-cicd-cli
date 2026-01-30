@@ -159,15 +159,20 @@ function log_secure {
 
 # Create JSON payload
 function createJSON {
-  local templateFile="${1}"
+  local templateFile="${JSON_FILE}"  # Read from global JSON_FILE variable
   local outputFile="${WORKSPACE}/tmp.json"
   
-  if [ ! -f "${SCRIPTS_HOME}/json/${templateFile}" ]; then
-      echo "Error: JSON template '${templateFile}' not found in ${SCRIPTS_HOME}/json"
+  if [ -z "${templateFile}" ]; then
+      echo "Error: JSON_FILE variable not set"
+      return 1
+  fi
+  
+  if [ ! -f "${SCRIPTS_HOME}/${templateFile}" ]; then
+      echo "Error: JSON template '${templateFile}' not found in ${SCRIPTS_HOME}"
       return 1
   fi
 
-  cp "${SCRIPTS_HOME}/json/${templateFile}" "$outputFile"
+  cp "${SCRIPTS_HOME}/${templateFile}" "$outputFile"
   
   for ARGUMENT in "$@"
   do
