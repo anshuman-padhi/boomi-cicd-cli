@@ -175,13 +175,15 @@ function createJSON {
   cp "${SCRIPTS_HOME}/${templateFile}" "$outputFile"
   
   # Substitute all variables from ARGUMENTS and OPT_ARGUMENTS arrays
+  # JSON templates use ${variable} format, not %variable%
   for KEY in "${ARGUMENTS[@]}" "${OPT_ARGUMENTS[@]}"
   do
     # Use indirect variable expansion to get the value
     if [ ! -z "${!KEY}" ]; then
       VALUE="${!KEY}"
       local temp_sed="${outputFile}.tmp"
-      sed "s~%${KEY}%~${VALUE}~g" "$outputFile" > "$temp_sed" && mv "$temp_sed" "$outputFile"
+      # Match ${KEY} pattern in JSON templates
+      sed "s~\${${KEY}}~${VALUE}~g" "$outputFile" > "$temp_sed" && mv "$temp_sed" "$outputFile"
     fi
   done
 }
