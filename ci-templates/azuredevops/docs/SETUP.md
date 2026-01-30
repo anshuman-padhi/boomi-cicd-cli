@@ -196,13 +196,19 @@ cd ~/boomi-cicd-cli/cli/scripts
 chmod +x bin/*.sh
 
 # Set test environment variables
-export authToken="YOUR_ACCOUNT.username:api_token"
+export authToken="BOOMI_TOKEN.username:api_token"
 export baseURL="https://api.boomi.com/api/rest/v1/YOUR_ACCOUNT_ID/"
 export SCRIPTS_HOME="$(pwd)"
 export WORKSPACE="$(pwd)/workspace"
 
+# Set mandatory framework variables
+export h1="Content-Type: application/json"
+export h2="Accept: application/json"
+export VERBOSE="false"
+export SLEEP_TIMER="0.2"
+
 # Test a simple query
-source bin/queryEnvironment.sh classification="*"
+source bin/queryEnvironment.sh env="*" classification="*"
 
 # If successful, you'll see JSON output with your environments
 ```
@@ -452,6 +458,11 @@ extends:
 export authToken="BOOMI_ACCOUNT.username:token"
 export baseURL="https://api.boomi.com/api/rest/v1/ACCOUNT_ID/"
 export SCRIPTS_HOME="$(pwd)/cli/scripts"
+exportWORKSPACE="$(pwd)/workspace"
+export h1="Content-Type: application/json"
+export h2="Accept: application/json"
+export VERBOSE="false"
+export SLEEP_TIMER="0.2"
 
 cd $SCRIPTS_HOME
 source bin/queryProcess.sh processName="MyProcessName"

@@ -106,7 +106,7 @@ export accountId="your-company-account-uuid"
 export authToken="BOOMI_TOKEN.username@company.com:aP1k3y02-mob1-b00M-M0b1-at0msph3r3aa"
 export baseURL="https://api.boomi.com/api/rest/v1/${accountId}/"
 
-# === API Headers ===
+# === API Headers (Required by framework) ===
 export h1="Content-Type: application/json"
 export h2="Accept: application/json"
 
@@ -114,7 +114,7 @@ export h2="Accept: application/json"
 export SCRIPTS_HOME="/path/to/boomi-cicd-cli/cli/scripts"
 export WORKSPACE="/path/to/boomi-cicd-cli/workspace"
 
-# === Performance Settings ===
+# === Performance Settings (Required by framework) ===
 export VERBOSE="false"           # Set to "true" only for debugging
 export SLEEP_TIMER=0.2           # Rate limiting: delays between API calls (5 requests/second max)
 EOF
@@ -213,10 +213,10 @@ Let's verify everything works by querying your environments:
 
 ```bash
 cd boomi-cicd-cli/cli/scripts
-source bin/queryEnvironment.sh classification="*"
+source bin/queryEnvironment.sh env="*" classification="*"
 ```
 
-If successful, you'll see JSON output with your environments!
+If successful, you'll see JSON output with all your environments!
 
 ## Step 6: Deploy Your First Package (Manual)
 
