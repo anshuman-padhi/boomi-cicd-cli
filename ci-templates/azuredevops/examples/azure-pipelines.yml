@@ -37,7 +37,7 @@ steps:
       deployToUAT: true
       deployToProd: false
       # Comma-separated component IDs to deploy
-      componentIds: '' 
+      componentIds: '590ed42b-a6b5-4c73-a8f8-5dc2451514b7' 
       # Comma-separated test component IDs
       test_componentIds: ''
       branchName: 'master' 
