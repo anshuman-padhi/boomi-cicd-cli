@@ -2,7 +2,7 @@ trigger:
   - main
 
 pool:
-  name: 'Default' # User specified local agent
+  name: "Default" # User specified local agent
 
 variables:
   - group: boomicicd
@@ -25,19 +25,19 @@ steps:
   - script: |
       mkdir -p $(WORKSPACE)
       chmod +x $(SCRIPTS_HOME)/bin/*.sh
-      chmod +x $(Build.SourcesDirectory)/azdevops_templates/*.sh
-    displayName: 'Prepare Workspace and Scripts'
+      chmod +x $(Build.SourcesDirectory)/ci-templates/azuredevops/pipelines/*.sh
+    displayName: "Prepare Workspace and Scripts"
 
-  - template: azdevops_templates/deploy_packages.yaml
+  - template: ci-templates/azuredevops/pipelines/deploy_packages.yaml
     parameters:
-      packageName: 'BoomiPackage'
-      packageVersion: '$(Build.BuildNumber)'
-      notes: 'Custom Pipeline Deployment'
+      packageName: "BoomiPackage"
+      packageVersion: "$(Build.BuildNumber)"
+      notes: "Custom Pipeline Deployment"
       deployToQA: true
       deployToUAT: true
       deployToProd: false
       # Comma-separated component IDs to deploy
-      componentIds: '' 
+      componentIds: ""
       # Comma-separated test component IDs
-      test_componentIds: ''
-      branchName: 'master' 
+      test_componentIds: ""
+      branchName: "master"
