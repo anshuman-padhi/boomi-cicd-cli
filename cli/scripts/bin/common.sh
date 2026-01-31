@@ -268,6 +268,14 @@ function callAPI {
  
  # Error Checking
  if [ -f "${WORKSPACE}/out.json" ]; then
+     # Check for valid JSON before parsing
+     if ! jq . "${WORKSPACE}/out.json" > /dev/null 2>&1; then
+        echo "Error: Failed to parse API response as JSON."
+        echo "Raw Response:"
+        cat "${WORKSPACE}/out.json"
+        return 255
+     fi
+
      local is_error=$(jq -r . "${WORKSPACE}/out.json" | grep '"@type": "Error"' | wc -l)
      if [[ $is_error -gt 0 ]]; then 
           export ERROR_MESSAGE=`jq -r .message "${WORKSPACE}"/out.json` 
@@ -300,11 +308,21 @@ function getAPI {
   if [ $res -ne 0 ]; then return 255; fi
 
   # Error Checking
-  local is_error=$(jq -r . "${WORKSPACE}/out.json" | grep '"@type": "Error"' | wc -l)
-  if [[ $is_error -gt 0 ]]; then 
-      export ERROR_MESSAGE=`jq -r .message "${WORKSPACE}/out.json"` 
-      echo "API Error: $ERROR_MESSAGE"
-      return 251
+  if [ -f "${WORKSPACE}/out.json" ]; then
+       # Check for valid JSON before parsing
+       if ! jq . "${WORKSPACE}/out.json" > /dev/null 2>&1; then
+          echo "Error: Failed to parse API response as JSON."
+          echo "Raw Response:"
+          cat "${WORKSPACE}/out.json"
+          return 255
+       fi
+  
+       local is_error=$(jq -r . "${WORKSPACE}/out.json" | grep '"@type": "Error"' | wc -l)
+       if [[ $is_error -gt 0 ]]; then 
+           export ERROR_MESSAGE=`jq -r .message "${WORKSPACE}/out.json"` 
+           echo "API Error: $ERROR_MESSAGE"
+           return 251
+       fi
   fi
   
   if [ "$VERBOSE" == "true" ]; then 
