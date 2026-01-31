@@ -277,7 +277,7 @@ Core Boomi API credentials:
 
 | Variable | Value | Secret | Example |
 |----------|-------|--------|---------|
-| `authToken` | `BOOMI_TOKEN.username:api_token` | ❌ No | `BOOMI_TOKEN.john.doe:sk-a1b2c3d4...` |
+| `authToken` | `BOOMI_TOKEN.username:api_token` | ✅ Yes | `BOOMI_TOKEN.john.doe:sk-a1b2c3d4...` |
 | `baseURL` | Boomi API base URL | ❌ No | `https://api.boomi.com/api/rest/v1/acme-ABC123/` |
 
 > **Note:** `authToken` is **NOT** Base64 encoded. Use plain text format: `ACCOUNT.username:token`
