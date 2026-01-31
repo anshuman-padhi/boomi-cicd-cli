@@ -4,20 +4,20 @@ trigger:
 pool:
   name: "Default" # User specified local agent
 
-variables:
-  - name: SCRIPTS_HOME
-    value: $(Build.SourcesDirectory)/cli/scripts
-  - name: WORKSPACE
-    value: $(Build.SourcesDirectory)/workspace
-  # Default values for common script variables
-  - name: h1
-    value: "Content-Type: application/json"
-  - name: h2
-    value: "Accept: application/json"
-  - name: VERBOSE
-    value: "true"
-  - name: SLEEP_TIMER
-    value: "0.2"
+# variables:
+#   - name: SCRIPTS_HOME
+#     value: $(Build.SourcesDirectory)/cli/scripts
+#   - name: WORKSPACE
+#     value: $(Build.SourcesDirectory)/workspace
+#   # Default values for common script variables
+#   - name: h1
+#     value: "Content-Type: application/json"
+#   - name: h2
+#     value: "Accept: application/json"
+#   - name: VERBOSE
+#     value: "true"
+#   - name: SLEEP_TIMER
+#     value: "0.2"
 
 extends:
   template: /ci-templates/azuredevops/pipelines/base_build_approval_deploy.yaml
