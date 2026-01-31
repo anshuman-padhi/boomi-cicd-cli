@@ -1,16 +1,16 @@
 {
-  "QueryFilter" :
-    {
-      "expression" :
-         {
-           "operator" : "and",
-           "nestedExpression" : [
-             {
-               "argument" : ["${env}"],
-               "operator" : "EQUALS",
-               "property" : "name"
-             }
-           ]
-         }
+  "QueryFilter": {
+    "expression": {
+      "operator": "and",
+      "nestedExpression": [
+        {
+          "argument": [
+            "${env}"
+          ],
+          "operator": "LIKE",
+          "property": "name"
+        }
+      ]
     }
+  }
 }
