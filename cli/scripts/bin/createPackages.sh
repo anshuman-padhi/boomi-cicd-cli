@@ -42,9 +42,12 @@ else
 		notes="${saveNotes}"
    	packageVersion="${savePackageVersion}"
     componentId=`echo "${componentId}" | xargs`
+    if [ -z "${componentId}" ]; then
+        continue
+    fi
     saveComponentId="${componentId}"
-		componentType="${saveComponentType}"
-		source bin/createSinglePackage.sh componentId=${componentId} componentType="${componentType}" packageVersion="${packageVersion}" notes="${notes}" extractComponentXmlFolder="${extractComponentXmlFolder}"  componentVersion="" branchName="${branchName}"
+    componentType="${saveComponentType}"
+    source bin/createSinglePackage.sh componentId=${componentId} componentType="${componentType}" packageVersion="${packageVersion}" notes="${notes}" extractComponentXmlFolder="${extractComponentXmlFolder}"  componentVersion="" branchName="${branchName}"
  	done   
 fi  
 

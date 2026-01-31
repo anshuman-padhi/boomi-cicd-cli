@@ -93,7 +93,7 @@ stages:
               SLEEP_TIMER: $(SLEEP_TIMER)
               WORKSPACE: $(WORKSPACE)
               SCRIPTS_HOME: $(SCRIPTS_HOME)
-              componentIds: ${{ parameters.componentIds }}
+              componentIds: "${{ parameters.componentIds }},${{ parameters.test_componentIds }}"
               packageVersion: $(packageVersion)
               notes: ${{ parameters.notes }}
               branchName: ${{ parameters.branchName }}
@@ -108,10 +108,8 @@ stages:
         jobs:
           - job: deploy_package
             displayName: "Deploy to QA"
-            variables:
-              packageId: $[stageDependencies.Build_Package.create_package.outputs['output_variable.packageId']]
             steps:
-              - template: deploy_packages_byId.yaml
+              - template: deploy_packages_multi.yaml
                 parameters:
                   h1: $(h1)
                   h2: $(h2)
@@ -121,17 +119,19 @@ stages:
                   SLEEP_TIMER: $(SLEEP_TIMER)
                   WORKSPACE: $(WORKSPACE)
                   SCRIPTS_HOME: $(SCRIPTS_HOME)
-                  packageId: $(packageId)
+                  packageVersion: $(packageVersion)
+                  componentIds: ${{ parameters.componentIds }}
                   env: $(development_apim_envname)
                   notes: "QA - ${{ parameters.notes }}"
                   listenerStatus: "RUNNING"
+                  branchName: ${{ parameters.branchName }}
 
           - job: deploy_test_packages
             displayName: "Deploy Test Components to QA"
             dependsOn: deploy_package
             steps:
               - ${{if parameters.test_componentIds}}:
-                  - template: deploy_packages.yaml
+                  - template: deploy_packages_multi.yaml
                     parameters:
                       h1: $(h1)
                       h2: $(h2)
@@ -144,9 +144,7 @@ stages:
                       componentIds: ${{ parameters.test_componentIds }}
                       env: $(development_apim_envname)
                       notes: "QA Test Components - ${{ parameters.notes }}"
-                      packageName: ${{ parameters.packageName }}
                       packageVersion: $(packageVersion)
-                      extractComponentXmlFolder: ""
                       branchName: ${{ parameters.branchName }}
 
       #############################
@@ -290,10 +288,8 @@ stages:
         jobs:
           - job: deploy_package
             displayName: "Deploy to UAT"
-            variables:
-              packageId: $[stageDependencies.Build_Package.create_package.outputs['output_variable.packageId']]
             steps:
-              - template: deploy_packages_byId.yaml
+              - template: deploy_packages_multi.yaml
                 parameters:
                   h1: $(h1)
                   h2: $(h2)
@@ -303,17 +299,18 @@ stages:
                   SLEEP_TIMER: $(SLEEP_TIMER)
                   WORKSPACE: $(WORKSPACE)
                   SCRIPTS_HOME: $(SCRIPTS_HOME)
-                  packageId: $(packageId)
+                  packageVersion: $(packageVersion)
+                  componentIds: ${{ parameters.componentIds }}
                   env: $(testing_apim_envname)
                   notes: "UAT - ${{ parameters.notes }}"
-                  listenerStatus: "RUNNING"
+                  branchName: ${{ parameters.branchName }}
 
           - job: deploy_test_packages
             displayName: "Deploy Test Components to UAT"
             dependsOn: deploy_package
             steps:
               - ${{if parameters.test_componentIds}}:
-                  - template: deploy_packages.yaml
+                  - template: deploy_packages_multi.yaml
                     parameters:
                       h1: $(h1)
                       h2: $(h2)
@@ -326,9 +323,7 @@ stages:
                       componentIds: ${{ parameters.test_componentIds }}
                       env: $(testing_apim_envname)
                       notes: "UAT Test Components - ${{ parameters.notes }}"
-                      packageName: ${{ parameters.packageName }}
                       packageVersion: $(packageVersion)
-                      extractComponentXmlFolder: ""
                       branchName: ${{ parameters.branchName }}
 
       #############################
@@ -494,10 +489,8 @@ stages:
         jobs:
           - job: deploy_package
             displayName: "Deploy to Production"
-            variables:
-              packageId: $[stageDependencies.Build_Package.create_package.outputs['output_variable.packageId']]
             steps:
-              - template: deploy_packages_byId.yaml
+              - template: deploy_packages_multi.yaml
                 parameters:
                   h1: $(h1)
                   h2: $(h2)
@@ -507,10 +500,11 @@ stages:
                   SLEEP_TIMER: $(SLEEP_TIMER)
                   WORKSPACE: $(WORKSPACE)
                   SCRIPTS_HOME: $(SCRIPTS_HOME)
-                  packageId: $(packageId)
+                  packageVersion: $(packageVersion)
+                  componentIds: ${{ parameters.componentIds }}
                   env: $(production_apim_envname)
                   notes: "PRODUCTION - ${{ parameters.notes }}"
-                  listenerStatus: "RUNNING"
+                  branchName: ${{ parameters.branchName }}
 
           - job: clean_up
             displayName: "Cleanup Temp Files"
