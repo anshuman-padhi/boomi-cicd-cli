@@ -6,21 +6,21 @@ parameters:
   #####################
   # Common parameters #
   #####################
-  h1: ''
-  h2: ''
-  baseURL: ''
-  authToken: ''
-  VERBOSE: ''
-  SLEEP_TIMER: ''
-  WORKSPACE: ''
-  SCRIPTS_HOME: ''
+  h1: ""
+  h2: ""
+  baseURL: ""
+  authToken: ""
+  VERBOSE: ""
+  SLEEP_TIMER: ""
+  WORKSPACE: ""
+  SCRIPTS_HOME: ""
   #######################
   # Specific parameters #
   #######################
-  packageId: ''
-  env: ''
-  notes: ''
-  listenerStatus: 'RUNNING'
+  packageId: ""
+  env: ""
+  notes: ""
+  listenerStatus: "RUNNING"
 
 steps:
   - script: |
@@ -45,7 +45,7 @@ steps:
       export env="${{ parameters.env }}"
       export notes="${{ parameters.notes }}"
       export listenerStatus="${{ parameters.listenerStatus }}"
-      
+
       #############
       # Execution #
       #############
@@ -53,30 +53,30 @@ steps:
       echo "Package ID: ${packageId}"
       echo "Environment: ${env}"
       echo "Listener Status: ${listenerStatus}"
-      
-      cd $(Build.Repository.LocalPath)
-      
+
+      cd ${SCRIPTS_HOME}
+
       # Query environment to get envId
-      source ${SCRIPTS_HOME}/bin/queryEnvironment.sh env="${env}" classification="*"
-      
+      source bin/queryEnvironment.sh env="${env}" classification="*"
+
       if [ "$ERROR" -gt 0 ]; then
         echo "❌ Failed to query environment: $ERROR_MESSAGE"
         exit 1
       fi
-      
+
       echo "Environment ID: ${envId}"
-      
+
       # Deploy the existing package (does NOT create new package)
-      source ${SCRIPTS_HOME}/bin/createDeployedPackage.sh \
+      source bin/createDeployedPackage.sh \
         envId="${envId}" \
         packageId="${packageId}" \
         listenerStatus="${listenerStatus}" \
         notes="${notes}"
-      
+
       if [ "$ERROR" -gt 0 ]; then
         echo "❌ Deployment failed: $ERROR_MESSAGE"
         exit 1
       fi
-      
+
       echo "✅ Package ${packageId} deployed successfully to ${env}"
-    displayName: 'Deploy Package ${{ parameters.packageId }} to ${{ parameters.env }}'
+    displayName: "Deploy Package ${{ parameters.packageId }} to ${{ parameters.env }}"

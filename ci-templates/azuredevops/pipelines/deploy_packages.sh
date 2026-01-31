@@ -12,5 +12,6 @@ fi
 
 saveNotes="Triggered by ${BUILD_USER} (${BUILD_USER_ID}) via ${BUILD_EVENT} event. ${notes}"
 
-# Execute using source with absolute path
-source "${SCRIPTS_HOME}/bin/deployPackages.sh" env="${env}" packageVersion="${packageVersion}" notes="${saveNotes}" listenerStatus="${listenerStatus}" componentIds="${componentIds}" processNames="${processNames}" extractComponentXmlFolder="${extractComponentXmlFolder}" tag="${tag}" componentType="${componentType}" branchName="${branchName}"
+# Execute using source with relative path (after cd)
+cd "${SCRIPTS_HOME}"
+source "bin/deployPackages.sh" env="${env}" packageVersion="${packageVersion}" notes="${saveNotes}" listenerStatus="${listenerStatus}" componentIds="${componentIds}" processNames="${processNames}" extractComponentXmlFolder="${extractComponentXmlFolder}" tag="${tag}" componentType="${componentType}" branchName="${branchName}"
