@@ -238,17 +238,14 @@ function poll_api_call {
         curl_exit_code=$?
         
         # Check standard curl exit code logic or empty file
-        if [ -s "$output_file" ]; then
-            return 0
+        # If success (exit code 0) and (file has content OR empty response allowed)
+        if [ "$curl_exit_code" -eq 0 ]; then
+            if [ -s "$output_file" ] || [ "$ALLOW_EMPTY_RESPONSE" == "true" ]; then
+                return 0
+            fi
         fi
         
         echo "Attempt $attempt failed. Retrying in $wait_time seconds..."
-        echo "Curl Exit Code: $curl_exit_code"
-        echo "Listing output file:"
-        ls -l "$output_file" 2>/dev/null
-        echo "Content of output file (first 5 lines):"
-        head -n 5 "$output_file" 2>/dev/null
-        echo "End of content check."
         
         sleep $wait_time
         attempt=$((attempt + 1))

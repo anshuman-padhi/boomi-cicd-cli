@@ -29,6 +29,7 @@ else
 fi
 URL="${baseURL}executeProcess"
  
+export ALLOW_EMPTY_RESPONSE=true 
 createJSON
 
 callAPI
