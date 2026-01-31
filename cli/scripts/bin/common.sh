@@ -261,6 +261,10 @@ function callAPI {
     echo "Error: No output received from API."
     return 255
  fi
+ 
+ if [ ! -z "${exportVariable}" ] && [ ! -z "${id}" ]; then
+    extract "${id}" "${exportVariable}"
+ fi
 
  # Logging
  if [ "$VERBOSE" == "true" ]; then 

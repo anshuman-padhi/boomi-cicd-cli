@@ -5,7 +5,7 @@ source bin/common.sh
 # mandatory arguments
 ARGUMENTS=(atomName atomType atomStatus)
 JSON_FILE=json/queryAtom.json
-URL=$baseURL/Atom/query
+URL="${baseURL}Atom/query"
 id=result[0].id
 exportVariable=atomId
 

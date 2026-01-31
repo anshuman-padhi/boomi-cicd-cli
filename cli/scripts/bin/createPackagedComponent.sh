@@ -14,14 +14,14 @@ then
         return 255;
 fi
 
-URL=$baseURL/PackagedComponent/
+URL="${baseURL}PackagedComponent"
 id=packageId
 exportVariable=packageId
 
 if [ null == "${componentVersion}" ] && [ -z "${branchName}" ];
 then
  JSON_FILE=json/createPackagedComponent.json
- URL=$baseURL/PackagedComponent/
+ URL="${baseURL}PackagedComponent"
 elif [ ! -z "${branchName}" ];
 then
  # Use Platform API if branchName is present
@@ -30,7 +30,7 @@ then
 else 
  ARGUMENTS=(componentId componentType componentVersion packageVersion notes createdDate) 
  JSON_FILE=json/createPackagedComponentVersion.json
- URL=$baseURL/PackagedComponent/
+ URL="${baseURL}PackagedComponent"
 fi
 
 createJSON

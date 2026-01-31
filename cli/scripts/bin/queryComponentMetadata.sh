@@ -60,7 +60,7 @@ else
 fi
 
 JSON_FILE="${JSON_FILE}.json"
-URL=$baseURL/ComponentMetadata/query
+URL="${baseURL}ComponentMetadata/query"
 createJSON
 
 callAPI

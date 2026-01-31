@@ -9,7 +9,7 @@ source bin/queryDeployedPackage.sh "$@"
 # mandatory arguments
 ARGUMENTS=(envId packageId notes listenerStatus)
 JSON_FILE=json/createDeployedPackage.json
-URL=$baseURL/DeployedPackage/
+URL="${baseURL}DeployedPackage"
 id=deploymentId
 exportVariable=deploymentId
 inputs "$@"

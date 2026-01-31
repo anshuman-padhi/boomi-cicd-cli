@@ -1,0 +1,103 @@
+#!/bin/bash
+
+# Mock curl script for testing
+# Logs requests to REQUEST_LOG_FILE (default: request_log.json)
+# Returns response from MOCK_RESPONSE_BODY (env var)
+
+LOG_FILE="${REQUEST_LOG_FILE:-request_log.json}"
+
+# captures arguments as an array
+ARGS=("$@")
+
+# Initialize log file if it doesn't exist
+if [ ! -f "$LOG_FILE" ]; then
+    echo "[]" > "$LOG_FILE"
+fi
+
+# Extract relevant info
+url=""
+method="GET" # Default to GET
+data_file=""
+header_content_type=""
+header_accept=""
+
+# Parse arguments roughly to find key params
+for ((i=0; i<$#; i++)); do
+    arg="${ARGS[i]}"
+    case "$arg" in
+        -X)
+            method="${ARGS[i+1]}"
+            ;;
+        --request)
+            method="${ARGS[i+1]}"
+            ;;
+        -d@*)
+            data_file="${arg#-d@}"
+            ;;
+        -H)
+            header="${ARGS[i+1]}"
+            if [[ "$header" == *"Content-Type"* ]]; then
+                header_content_type="$header"
+            elif [[ "$header" == *"Accept"* ]]; then
+                header_accept="$header"
+            fi
+            ;;
+        http*)
+            url="$arg"
+            ;;
+    esac
+done
+
+# Read request body if data file exists
+request_body=""
+if [ -n "$data_file" ] && [ -f "$data_file" ]; then
+    request_body=$(cat "$data_file")
+fi
+
+# Construct JSON entry for this request
+# We use python or jq to safely append to JSON if available, but for a simple mock bash script, 
+# we'll use a simple temp file append approach to avoid complex dependency reliance inside the mock if possible.
+# Actually, jq is a dependency of the main project, so we can use it.
+
+# Create a temporary json object for the current request
+tmp_entry=$(mktemp)
+jq -n \
+    --arg url "$url" \
+    --arg method "$method" \
+    --arg body "$request_body" \
+    --arg h1 "$header_content_type" \
+    --arg h2 "$header_accept" \
+    '{url: $url, method: $method, body: $body, headers: {contentType: $h1, accept: $h2}}' > "$tmp_entry"
+
+# Append to the array in the log file
+# Slurp the existing log and the new entry, then add the new entry to the array
+tmp_log=$(mktemp)
+jq -s '.[0] + [.[1]]' "$LOG_FILE" "$tmp_entry" > "$tmp_log" && mv "$tmp_log" "$LOG_FILE"
+rm "$tmp_entry"
+
+# Output Mock Response
+if [[ "$url" == *"ComponentMetadata"* ]]; then
+    echo '{"result": [{"componentId": "test-component-id", "name": "Test Comp", "version": 1, "type": "process"}]}'
+elif [[ "$url" == *"Environment/query"* ]]; then
+    # Respect strict body if provided, else default
+    if [ -n "$MOCK_RESPONSE_BODY" ]; then
+        echo "$MOCK_RESPONSE_BODY"
+    else
+        echo '{"result": [{"id": "env-123", "name": "dev"}]}'
+    fi
+elif [[ "$url" == *"PackagedComponent"* ]]; then
+    echo '{"packageId": "pkg-456"}'
+elif [[ "$url" == *"DeployedPackage"* ]]; then
+    echo '{"deploymentId": "dep-123"}'
+elif [[ "$url" == *"Atom/query"* ]]; then
+    echo '{"result": [{"id": "atom-123", "status": "online", "type": "MOLECULE"}]}'
+elif [[ "$url" == *"executeProcess"* ]]; then
+    echo '{"executionId": "exec-123"}'
+elif [ -n "$MOCK_RESPONSE_BODY" ]; then
+    echo "$MOCK_RESPONSE_BODY"
+else
+    # Default success response if none provided
+    echo '{"status": "success", "mock": true}'
+fi
+
+exit 0

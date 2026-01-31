@@ -30,7 +30,7 @@ fi
 
 ARGUMENTS=(atomId processId processProperties)
 JSON_FILE=json/executeProcess.json
-URL=$baseURL/executeProcess
+URL="${baseURL}executeProcess"
  
 createJSON
 
