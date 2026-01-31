@@ -213,7 +213,28 @@ source bin/queryEnvironment.sh env="*" classification="*"
 # If successful, you'll see JSON output with your environments
 ```
 
-### Step 10: Create Agent Pool (If Needed)
+### Step 10: Validating the CLI (Automated Tests)
+We have included a comprehensive test suite to validate the CLI scripts without connecting to a real Boomi environment. This verifies that JSON payloads are generated correctly and API calls are constructed properly.
+
+To run the full test suite:
+```bash
+# Navigate to the CLI root
+cd ~/boomi-cicd-cli
+
+# Run the test runner
+./cli/tests/run_tests.sh
+```
+
+**Expected Output:**
+```text
+TEST: queryEnvironment.sh - Wildcard (*)
+PASS: URL construction
+PASS: Operator is LIKE for wildcard
+...
+ALL TESTS PASSED
+```
+
+### Step 11: Create Agent Pool (If Needed)
 
 If you want a dedicated pool for Boomi deployments:
 

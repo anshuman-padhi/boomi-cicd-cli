@@ -135,6 +135,10 @@ The CLI provides scripts for all major Boomi operations:
 - `createAtom.sh` - Create atom
 - `updateAtom.sh` - Update atom configuration
 
+### Testing & Validation
+- `run_tests.sh` - Execute automated test suite for CLI validation
+- `mocks/curl` - Mock API responses for offline testing
+
 ### Reporting
 - `publishDeployedPackage.sh` - Generate deployment reports
 - `publishPackagedComponent.sh` - List packaged components
