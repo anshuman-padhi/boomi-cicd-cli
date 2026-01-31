@@ -19,7 +19,7 @@ parameters:
   - name: deployToQA
     displayName: Deploy to QA
     type: boolean
-    default: false
+    default: true
   - name: deployToUAT
     displayName: Deploy to UAT
     type: boolean
@@ -46,8 +46,8 @@ extends:
   parameters:
     packageVersion: ${{ parameters.packageVersion }}
     packageName: "dummy-api"
-    componentIds: "2d72456d-baa8-4782-beb6-e18511bf9feb,ea579547-3b49-4881-9ed6-156d27ac38db"
-    test_componentIds: "4fd96edb-18c6-4436-8444-be99c4e91b67"
+    componentIds: "dd185596-c539-4d31-97c5-1a46f13eafa4,8d4bd7c8-1071-4ba9-a697-8e5e21a6e229,2dcfe4f6-0a27-4ad3-afa8-67a873b1edd1"
+    test_componentIds: "590ed42b-a6b5-4c73-a8f8-5dc2451514b7"
     notes: ${{ parameters.notes }}
     deployToQA: ${{ parameters.deployToQA }}
     deployToUAT: ${{ parameters.deployToUAT }}
