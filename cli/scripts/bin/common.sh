@@ -117,6 +117,18 @@ function inputs {
     mkdir -p "${WORKSPACE}"
   fi
   
+  # Standardize baseURL to have trailing slash
+  if [ ! -z "${baseURL}" ] && [[ "${baseURL}" != */ ]]; then
+      baseURL="${baseURL}/"
+  fi
+  
+  # Extract accountId from baseURL
+  if [ ! -z "${baseURL}" ]; then
+      # Remove trailing slash for processing
+      local temp_url="${baseURL%/}"
+      export accountId=$(basename "${temp_url}")
+  fi
+  
   if [ "$VERBOSE" == "true" ]  
   then 
    printArgs

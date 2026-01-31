@@ -5,7 +5,7 @@ source bin/common.sh
 # mandatory arguments
 ARGUMENTS=(componentId componentType packageVersion)
 OPT_ARGUMENTS=(componentVersion)
-URL=$baseURL/PackagedComponent/query
+URL="${baseURL}PackagedComponent/query"
 id=result[0].packageId
 exportVariable=packageId
 
