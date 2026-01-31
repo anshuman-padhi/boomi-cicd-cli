@@ -5,8 +5,6 @@ pool:
   name: "Default" # User specified local agent
 
 variables:
-  - group: boomicicd
-  - group: boomiruntime
   - name: SCRIPTS_HOME
     value: $(Build.SourcesDirectory)/cli/scripts
   - name: WORKSPACE
