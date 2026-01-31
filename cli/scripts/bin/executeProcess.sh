@@ -1,6 +1,6 @@
+#!/bin/bash
 # executeProcess (asyncronously) by passing the processId and atomId
 # Usage : executeProcess.sh <atomId> <processId>
-#!/bin/bash
 source bin/common.sh
 #execute Process by atomId and processId
 ARGUMENTS=(atomName atomType)
@@ -23,9 +23,6 @@ processId=${componentId}
 if [ -z "${processProperties}" ]
 then
 	processProperties="[]"
-else
-	# escape double quotes with \"
-	processProperties=`echo $processProperties | sed -e 's/\"/\\\"/g'`
 fi
 
 ARGUMENTS=(atomId processId processProperties)

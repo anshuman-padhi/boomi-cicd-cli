@@ -222,11 +222,17 @@ function poll_api_call {
     while [ $attempt -le $max_retries ]; do
         if [ "$method" == "POST" ]; then
              if [ "$VERBOSE" == "true" ]; then
-                 echo "DEBUG CURL: curl -s -X POST -u \"HIDDEN\" -H \"${h1}\" -H \"${h2}\" \"$url\" -d@\"$data_file\""
+                 echo "DEBUG CURL: curl -v -X POST -u \"HIDDEN\" -H \"${h1}\" -H \"${h2}\" \"$url\" -d@\"$data_file\""
+                 curl -v -X POST -u "$authToken" -H "${h1}" -H "${h2}" "$url" -d@"$data_file" > "$output_file" 2>&1
+             else
+                 curl -s -X POST -u "$authToken" -H "${h1}" -H "${h2}" "$url" -d@"$data_file" > "$output_file"
              fi
-             curl -s -X POST -u "$authToken" -H "${h1}" -H "${h2}" "$url" -d@"$data_file" > "$output_file"
         else
-             curl -s -X GET -u "$authToken" -H "${h1}" -H "${h2}" "$url" > "$output_file"
+             if [ "$VERBOSE" == "true" ]; then
+                curl -v -X GET -u "$authToken" -H "${h1}" -H "${h2}" "$url" > "$output_file" 2>&1
+             else
+                curl -s -X GET -u "$authToken" -H "${h1}" -H "${h2}" "$url" > "$output_file"
+             fi
         fi
         
         # Check standard curl exit code logic or empty file
