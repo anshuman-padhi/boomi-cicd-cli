@@ -256,7 +256,7 @@ Core Boomi API credentials:
 
 | Variable | Value | Secret | Example |
 |----------|-------|--------|---------|
-| `authToken` | `BOOMI_ACCOUNT.username:api_token` | ❌ No | `acme-ABC123.john.doe:sk-a1b2c3d4...` |
+| `authToken` | `BOOMI_TOKEN.username:api_token` | ❌ No | `BOOMI_TOKEN.john.doe:sk-a1b2c3d4...` |
 | `baseURL` | Boomi API base URL | ❌ No | `https://api.boomi.com/api/rest/v1/acme-ABC123/` |
 
 > **Note:** `authToken` is **NOT** Base64 encoded. Use plain text format: `ACCOUNT.username:token`
@@ -425,9 +425,98 @@ Supporting templates for specialized operations:
 
 ---
 
+## Managing Templates in Azure DevOps
+
+Before creating a pipeline, you need to decide how to host these templates. There are two common strategies:
+
+### Strategy A: Central Repository (Recommended)
+Host this `boomi-cicd-cli` codebase as a dedicated repository (e.g., named `boomi-cicd-cli`) in your Azure DevOps project. Your integration pipelines (in other repos) will reference it remotely.
+
+**Pros:**
+- Update templates once, update everywhere
+- Cleaner integration repositories
+- Version control for your CI/CD logic
+
+### Strategy B: Single Repository
+Copy the `ci-templates` and `cli` directories directly into your integration project's repository.
+
+**Pros:**
+- Simple to start
+- No cross-repo permissions needed
+**Cons:**
+- Hard to maintain updates across multiple projects
+
+---
+
 ## Creating Your First Pipeline
 
-### Method 1: Using Build-Once Pattern (Recommended)
+This guide follows **Strategy A (Central Repository)** as it is the best practice for scalability.
+
+### Step 1: Push CLI to Azure DevOps
+1. Create a new repository in Azure DevOps named `boomi-cicd-cli`.
+2. Push this entire codebase to that repository.
+   ```bash
+   git remote add azure https://dev.azure.com/{org}/{project}/_git/boomi-cicd-cli
+   git push -u azure main
+   ```
+
+### Step 2: Create Integration Pipeline
+In your Boomi integration repository (where your process logic might ideally live, or just a repo for pipelines):
+
+1. Create a file named `azure-pipelines.yml`.
+2. Paste the following configuration:
+
+```yaml
+# azure-pipelines.yml
+
+# 1. Define resources to access the CLI templates
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: YourProjectName/boomi-cicd-cli # <--- CHANGE THIS to your properties
+      ref: main
+
+trigger:
+  - main
+
+pool:
+  name: 'Default' # Ensure this matches your Self-Hosted Agent pool
+
+# 2. Extend the "Build-Once-Deploy-Many" template
+extends:
+  template: ci-templates/azuredevops/pipelines/base_build_approval_deploy.yaml@templates
+  parameters:
+    packageName: 'My-Boomi-Process-Pkg'
+    packageVersion: '1.0.$(Build.BuildId)'
+    
+    # 3. Define the component IDs to package (Find via queryProcess.sh or AtomSphere)
+    componentIds: '4d5e6f7g-8h9i-0j1k-2l3m-4n5o6p7q8r9s' 
+    
+    # 4. Enable deployments
+    deployToQA: true
+    deployToUAT: true
+    deployToProd: true
+    
+    # 5. Add deployment notes
+    notes: 'Automated release via Azure DevOps'
+```
+
+### Step 3: Register Pipeline
+1. Go to **Azure DevOps** -> **Pipelines** -> **New pipeline**.
+2. Select **Azure Repos Git**.
+3. Select your **Integration Repository**.
+4. Select **Existing Azure Pipelines YAML file**.
+5. Path: `/azure-pipelines.yml`.
+6. Click **Run**.
+
+---
+
+### Alternative: Method 2 (Single Repository)
+
+If you prefer to copy the template files directly into your project repository (Strategy B), follow these examples.
+
+#### Option A: Full Production Pipeline (Build-Once Pattern)
 
 **1. Copy the example:**
 ```bash
@@ -458,7 +547,7 @@ extends:
 export authToken="BOOMI_ACCOUNT.username:token"
 export baseURL="https://api.boomi.com/api/rest/v1/ACCOUNT_ID/"
 export SCRIPTS_HOME="$(pwd)/cli/scripts"
-exportWORKSPACE="$(pwd)/workspace"
+export WORKSPACE="$(pwd)/workspace"
 export h1="Content-Type: application/json"
 export h2="Accept: application/json"
 export VERBOSE="false"
@@ -469,14 +558,10 @@ source bin/queryProcess.sh processName="MyProcessName"
 # Copy the componentId from output
 ```
 
-**4. Create pipeline in Azure DevOps:**
-- **Pipelines** → **New pipeline** → **Azure Repos Git**
-- Select your repository
-- **Existing Azure Pipelines YAML file**
-- Path: `/my-api-pipeline.yaml`
-- **Run**
+**4. Register Pipeline:**
+Follow the same "Register Pipeline" steps as above, pointing to `my-api-pipeline.yaml`.
 
-### Method 2: Simple Deployment (Development/QA)
+#### Option B: Simple Development Pipeline
 
 ```yaml
 trigger:

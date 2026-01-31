@@ -6,20 +6,20 @@ parameters:
   #####################
   # Common parameters #
   #####################
-  h1 : ''
-  h2 : ''
-  baseURL : ''
-  authToken : ''
-  VERBOSE : ''
-  SLEEP_TIMER : ''
-  WORKSPACE : ''
-  SCRIPTS_HOME : ''
-  BUILD_USER_ID : ''
+  h1: ""
+  h2: ""
+  baseURL: ""
+  authToken: ""
+  VERBOSE: ""
+  SLEEP_TIMER: ""
+  WORKSPACE: ""
+  SCRIPTS_HOME: ""
+  BUILD_USER_ID: ""
   #######################
   # Specific parameters #
   #######################
-  atomName : ''
-  componentIds : ''
+  atomName: ""
+  componentIds: ""
 
 steps:
   - script: |
@@ -47,10 +47,10 @@ steps:
       #############
       echo "ARA: Moving to $(Build.Repository.LocalPath)"
       cd $(Build.Repository.LocalPath)
-      cd templates
-      bash -xe ./validate_processes.sh
+      chmod +x ci-templates/azuredevops/pipelines/*.sh
+      bash -xe ci-templates/azuredevops/pipelines/validate_processes.sh
   - task: PublishTestResults@2
     displayName: Publish Scheduled Process Test Results
     inputs:
-      testResultsFiles: '**/*.xml'
+      testResultsFiles: "**/*.xml"
       searchFolder: $(build.artifactstagingdirectory)

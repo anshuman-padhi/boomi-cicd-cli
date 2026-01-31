@@ -2,7 +2,7 @@
 # Ensure SCRIPTS_HOME is available
 if [ -z "${SCRIPTS_HOME}" ]; then
   echo "SCRIPTS_HOME is not set. Assuming default relative location..."
-  SCRIPTS_HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../cli/scripts" && pwd )"
+  SCRIPTS_HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../../cli/scripts" && pwd )"
 fi
 
 if [ ! -d "${SCRIPTS_HOME}" ]; then
