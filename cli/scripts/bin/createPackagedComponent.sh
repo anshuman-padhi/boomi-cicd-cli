@@ -26,7 +26,7 @@ elif [ ! -z "${branchName}" ];
 then
  # Use Platform API if branchName is present
  JSON_FILE=json/createPackagedComponentPlatform.json
- URL="https://api.boomi.com/api/platform/v1/$accountId/packagedComponent"
+ URL="https://api.boomi.com/api/platform/v1/$accountId/PackagedComponent"
 else 
  ARGUMENTS=(componentId componentType componentVersion packageVersion notes createdDate) 
  JSON_FILE=json/createPackagedComponentVersion.json

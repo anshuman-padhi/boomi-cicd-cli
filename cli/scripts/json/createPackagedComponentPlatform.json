@@ -1,6 +1,7 @@
 {
-  "componentId" : "${componentId}",
-  "version" : "${componentVersion}",
-  "branchName" : "${branchName}",
-  "notes" : "${notes}"
+  "componentId": "${componentId}",
+  "componentType": "${componentType}",
+  "packageVersion": "${packageVersion}",
+  "branchName": "${branchName}",
+  "notes": "${notes}"
 }
