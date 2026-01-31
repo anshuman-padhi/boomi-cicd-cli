@@ -31,10 +31,10 @@ parameters:
   - name: branchName
     displayName: Branch Name
     type: string
-    default: "master"
+    default: "main"
 
 trigger:
-  - master
+  - main
 
 pool:
   name: Default

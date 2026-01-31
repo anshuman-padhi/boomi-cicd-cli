@@ -35,10 +35,10 @@ parameters:
   - name: branchName
     displayName: Boomi Branch Name (optional)
     type: string
-    default: "master"
+    default: "main"
 
 trigger:
-  - master
+  - main
 
 pool:
   name: Default
