@@ -34,13 +34,26 @@ for componentId in `echo "${componentIds}" | tr ',' ' '`; do
     fi
     echo "Processing Component ID: ${componentId}"
     
-    # Reset variables
-    export packageId=""
-    
     # Query Package ID by Version
-    if [ -n "${saveComponentType}" ]; then
-        source bin/queryPackagedComponent.sh componentId="${componentId}" packageVersion="${savePackageVersion}" componentType="${saveComponentType}"
+    if [ -z "${saveComponentType}" ]; then
+         echo "Component Type not provided. Querying metadata for ${componentId}..."
+         source bin/queryComponentMetadata.sh componentId="${componentId}"
+         if [ "$ERROR" -gt 0 ]; then
+            echo "Error: Could not retrieve metadata for component ${componentId}"
+            return 255
+         fi
+         # queryComponentMetadata exports componentType, componentId, componentName, etc.
+         # capture it
+         useComponentType="${componentType}"
+         echo "Retrieved Component Type: ${useComponentType}"
     else
+         useComponentType="${saveComponentType}"
+    fi
+
+    if [ -n "${useComponentType}" ]; then
+        source bin/queryPackagedComponent.sh componentId="${componentId}" packageVersion="${savePackageVersion}" componentType="${useComponentType}"
+    else
+        # Fallback to version-only query if for some reason type is still missing
         source bin/queryPackagedComponent.sh componentId="${componentId}" packageVersion="${savePackageVersion}"
     fi
     
