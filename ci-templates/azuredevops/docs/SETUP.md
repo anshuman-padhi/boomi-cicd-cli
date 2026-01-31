@@ -725,6 +725,7 @@ For production deployments, configure approval gates to ensure controlled releas
 | `404 Not Found` | Invalid baseURL or component not found | Check baseURL has trailing `/` |
 | `componentId is null` | Process name not found | Verify exact process name (case-sensitive) |
 | `SCRIPTS_HOME not set` | Variable not defined | Add to pipeline variables |
+| `env is mandatory` | `env` argument missing or empty | Check `boomiruntime` variable group for `_envname` variables |
 
 ### Debugging Steps
 
