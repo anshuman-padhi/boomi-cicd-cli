@@ -28,7 +28,7 @@ extends:
     deployToUAT: true
     deployToProd: true
     # Comma-separated component IDs to deploy
-    componentIds: "590ed42b-a6b5-4c73-a8f8-5dc2451514b7"
+    componentIds: "dd185596-c539-4d31-97c5-1a46f13eafa4,8d4bd7c8-1071-4ba9-a697-8e5e21a6e229,2dcfe4f6-0a27-4ad3-afa8-67a873b1edd1"
     # Comma-separated test component IDs
-    test_componentIds: ""
+    test_componentIds: "590ed42b-a6b5-4c73-a8f8-5dc2451514b7"
     branchName: "main"
