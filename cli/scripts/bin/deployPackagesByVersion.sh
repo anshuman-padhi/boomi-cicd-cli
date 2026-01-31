@@ -27,18 +27,22 @@ if [ -z "${componentIds}" ]; then
     return 255
 fi
 
-IFS=','
 for componentId in `echo "${componentIds}" | tr ',' ' '`; do 
     componentId=`echo "${componentId}" | xargs`
+    if [ -z "${componentId}" ]; then
+        continue
+    fi
     echo "Processing Component ID: ${componentId}"
     
     # Reset variables
     export packageId=""
     
     # Query Package ID by Version
-    # Note: queryPackagedComponent.sh expects componentVersion (for internal version) or just packageVersion?
-    # Based on view_file, it accepts packageVersion.
-    source bin/queryPackagedComponent.sh componentId="${componentId}" packageVersion="${savePackageVersion}" componentType="${saveComponentType}"
+    if [ -n "${saveComponentType}" ]; then
+        source bin/queryPackagedComponent.sh componentId="${componentId}" packageVersion="${savePackageVersion}" componentType="${saveComponentType}"
+    else
+        source bin/queryPackagedComponent.sh componentId="${componentId}" packageVersion="${savePackageVersion}"
+    fi
     
     if [ "$ERROR" -gt 0 ] || [ -z "${packageId}" ]; then
         echo "Error: Could not find package for component ${componentId} with version ${savePackageVersion}"
