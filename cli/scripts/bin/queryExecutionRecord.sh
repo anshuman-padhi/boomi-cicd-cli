@@ -6,7 +6,7 @@ source bin/common.sh
 ARGUMENTS=(from to atomName)
 OPT_ARGUMENTS=(processName componentId failOnError)
 JSON_FILE=json/queryExecutionRecord.json
-URL=$baseURL/ExecutionRecord/query
+URL="${baseURL}ExecutionRecord/query"
 id=result[0].executionId
 exportVariable=executionId
 now=`date -u +"%Y-%m-%d"T%H:%M:%SZ --date '+1 min'`
