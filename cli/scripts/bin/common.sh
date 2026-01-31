@@ -112,6 +112,11 @@ function inputs {
     fi  
   done
   
+  # Ensure workspace exists if valid
+  if [ ! -z "${WORKSPACE}" ]; then
+    mkdir -p "${WORKSPACE}"
+  fi
+  
   if [ "$VERBOSE" == "true" ]  
   then 
    printArgs
