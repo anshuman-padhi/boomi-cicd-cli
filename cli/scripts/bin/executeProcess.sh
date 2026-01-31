@@ -20,13 +20,13 @@ then
 fi
 processId=${componentId}
 
-if [ -z "${processProperties}" ]
-then
-	processProperties="[]"
+if [ -z "${processProperties}" ] || [ "${processProperties}" == "[]" ]; then
+    ARGUMENTS=(atomId processId)
+    JSON_FILE=json/executeProcessSimple.json
+else
+    ARGUMENTS=(atomId processId processProperties)
+    JSON_FILE=json/executeProcess.json
 fi
-
-ARGUMENTS=(atomId processId processProperties)
-JSON_FILE=json/executeProcess.json
 URL="${baseURL}executeProcess"
  
 createJSON
