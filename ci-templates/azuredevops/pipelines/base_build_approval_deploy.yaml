@@ -55,6 +55,18 @@ parameters:
 variables:
   - group: boomicicd
   - group: boomiruntime
+  - name: SCRIPTS_HOME
+    value: $(Build.SourcesDirectory)/cli/scripts
+  - name: WORKSPACE
+    value: $(Build.SourcesDirectory)/workspace
+  - name: h1
+    value: "Content-Type: application/json"
+  - name: h2
+    value: "Accept: application/json"
+  - name: VERBOSE
+    value: "true"
+  - name: SLEEP_TIMER
+    value: "0.2"
   - name: packageVersion
     ${{ if eq(parameters.packageVersion, '0') }}:
       value: ${{ parameters.packageName }}.$(Build.BuildNumber).BUILD
