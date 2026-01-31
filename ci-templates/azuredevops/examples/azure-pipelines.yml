@@ -21,23 +21,17 @@ variables:
   - name: SLEEP_TIMER
     value: "0.2"
 
-steps:
-  - script: |
-      mkdir -p $(WORKSPACE)
-      chmod +x $(SCRIPTS_HOME)/bin/*.sh
-      chmod +x $(Build.SourcesDirectory)/ci-templates/azuredevops/pipelines/*.sh
-    displayName: "Prepare Workspace and Scripts"
-
-  - template: /ci-templates/azuredevops/pipelines/base_build_approval_deploy.yaml
-    parameters:
-      packageName: "BoomiPackage"
-      packageVersion: "$(Build.BuildNumber)"
-      notes: "Custom Pipeline Deployment"
-      deployToQA: true
-      deployToUAT: true
-      deployToProd: false
-      # Comma-separated component IDs to deploy
-      componentIds: "590ed42b-a6b5-4c73-a8f8-5dc2451514b7"
-      # Comma-separated test component IDs
-      test_componentIds: ""
-      branchName: "master"
+extends:
+  template: /ci-templates/azuredevops/pipelines/base_build_approval_deploy.yaml
+  parameters:
+    packageName: "BoomiPackage"
+    packageVersion: "$(Build.BuildNumber)"
+    notes: "Custom Pipeline Deployment"
+    deployToQA: true
+    deployToUAT: true
+    deployToProd: false
+    # Comma-separated component IDs to deploy
+    componentIds: "590ed42b-a6b5-4c73-a8f8-5dc2451514b7"
+    # Comma-separated test component IDs
+    test_componentIds: ""
+    branchName: "master"
