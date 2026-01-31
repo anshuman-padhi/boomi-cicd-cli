@@ -21,17 +21,16 @@ exportVariable=packageId
 if [ null == "${componentVersion}" ] && [ -z "${branchName}" ];
 then
  JSON_FILE=json/createPackagedComponent.json
- URL="${baseURL}PackagedComponent"
 elif [ ! -z "${branchName}" ];
 then
- # Use Platform API if branchName is present
+ # Use Platform API JSON structure but standard REST URL
  JSON_FILE=json/createPackagedComponentPlatform.json
- URL="https://api.boomi.com/api/platform/v1/$accountId/PackagedComponent"
 else 
  ARGUMENTS=(componentId componentType componentVersion packageVersion notes createdDate) 
  JSON_FILE=json/createPackagedComponentVersion.json
- URL="${baseURL}PackagedComponent"
 fi
+
+URL="${baseURL}PackagedComponent"
 
 createJSON
 if [ "$packageId" == "null" ] || [ -z "$packageId" ] || [ null == "${packageId}" ]
