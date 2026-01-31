@@ -4,7 +4,7 @@ source bin/common.sh
 # get atom id of the by atom name
 # mandatory arguments
 ARGUMENTS=(env classification)
-URL=$baseURL/Environment/query
+URL="${baseURL}Environment/query"
 id=result[0].id
 exportVariable=envId
 

@@ -204,6 +204,9 @@ function poll_api_call {
     local attempt=1
     while [ $attempt -le $max_retries ]; do
         if [ "$method" == "POST" ]; then
+             if [ "$VERBOSE" == "true" ]; then
+                 echo "DEBUG CURL: curl -s -X POST -u \"HIDDEN\" -H \"${h1}\" -H \"${h2}\" \"$url\" -d@\"$data_file\""
+             fi
              curl -s -X POST -u "$authToken" -H "${h1}" -H "${h2}" "$url" -d@"$data_file" > "$output_file"
         else
              curl -s -X GET -u "$authToken" -H "${h1}" -H "${h2}" "$url" > "$output_file"
