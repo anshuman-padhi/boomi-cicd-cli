@@ -26,9 +26,9 @@ extends:
     notes: "Custom Pipeline Deployment"
     deployToQA: true
     deployToUAT: true
-    deployToProd: false
+    deployToProd: true
     # Comma-separated component IDs to deploy
     componentIds: "590ed42b-a6b5-4c73-a8f8-5dc2451514b7"
     # Comma-separated test component IDs
     test_componentIds: ""
-    branchName: "master"
+    branchName: "main"
