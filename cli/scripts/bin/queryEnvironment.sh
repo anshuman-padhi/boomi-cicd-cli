@@ -14,6 +14,10 @@ then
    return 255;
 fi
 
+if [ "${env}" = "*" ]; then
+  env="%"
+fi
+
 if [ "${classification}" = "*" ]
 then
  JSON_FILE=json/queryEnvironmentAnyClassification.json
