@@ -47,7 +47,7 @@ pool:
 
 # Use the NEW build-once-deploy-many template with approval gates
 extends:
-  template: ci-templates/azuredevops/pipelines/base_build_approval_deploy.yaml
+  template: /ci-templates/azuredevops/pipelines/base_build_approval_deploy.yaml
   parameters:
     packageVersion: ${{ parameters.packageVersion }}
     packageName: "dummy-api"

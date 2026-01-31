@@ -42,7 +42,7 @@ pool:
     - agent.os -equals Linux
 
 extends:
-  template: ci-templates/azuredevops/pipelines/base_build_approval_deploy.yaml
+  template: /ci-templates/azuredevops/pipelines/base_build_approval_deploy.yaml
   parameters:
     packageVersion: ${{ parameters.packageVersion }}
     packageName: "dummy-api"
