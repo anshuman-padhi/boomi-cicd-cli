@@ -46,25 +46,28 @@ for componentId in "${componentIdArray[@]}"; do
     if [ -z "${saveComponentType}" ]; then
          echo "DEBUG: Component Type not provided. Querying metadata..."
          source bin/queryComponentMetadata.sh componentId="${componentId}"
-         if [ "$ERROR" -gt 0 ]; then
-            echo "Error: Could not retrieve metadata for component ${componentId}"
-            # Ensure we fail the pipeline if metadata lookup fails
-            return 255
-         fi
          # queryComponentMetadata exports componentType, componentId, componentName, etc.
-         # capture it
-         useComponentType="${componentType}"
-         echo "DEBUG: Retrieved Component Type: ${useComponentType}"
+         # If it fails or returns nothing, variables might be empty or literal "null"
+         
+         if [ "$componentType" == "null" ] || [ -z "$componentType" ]; then
+             echo "WARN: Component Type could not be determined from metadata (Result was '${componentType}'). Proceeding without Type."
+             useComponentType=""
+         else
+             useComponentType="${componentType}"
+             echo "DEBUG: Retrieved Component Type: ${useComponentType}"
+         fi
     else
          useComponentType="${saveComponentType}"
     fi
 
-    if [ -n "${useComponentType}" ]; then
+    if [ -n "${useComponentType}" ] && [ "${useComponentType}" != "null" ]; then
         echo "DEBUG: Querying Packaged Component with Type: ${useComponentType}"
         source bin/queryPackagedComponent.sh componentId="${componentId}" packageVersion="${savePackageVersion}" componentType="${useComponentType}"
     else
         echo "DEBUG: Querying Packaged Component without Type (Fallback)"
-        # Fallback to version-only query if for some reason type is still missing
+        # Fallback to version-only query
+        # Ensure componentType is unset so queryPackagedComponent.sh uses the correct logic
+        unset componentType
         source bin/queryPackagedComponent.sh componentId="${componentId}" packageVersion="${savePackageVersion}"
     fi
     
