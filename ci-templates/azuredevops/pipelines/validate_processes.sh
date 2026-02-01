@@ -53,7 +53,31 @@ for componentId in $(echo $componentIds | sed "s/,/ /g")
 do
     export atomName=${atomNameBackup}
     export timestart=$(getTimestamp)
-    source bin/queryExecutionRecord.sh processId=${componentId}
+    
+    # Retry logic: Poll for execution record up to 5 times with 10 second intervals
+    max_retries=5
+    retry_wait=10
+    found_execution=false
+    
+    for attempt in $(seq 1 $max_retries); do
+        echo "[Attempt $attempt/$max_retries] Querying execution record for ${componentId}..."
+        source bin/queryExecutionRecord.sh processId=${componentId}
+        
+        # Check if we got a valid execution record
+        if [ "$executionId" != "null" ] && [ ! -z "$executionId" ]; then
+            echo "[SUCCESS] Found execution record: ${executionId}"
+            found_execution=true
+            break
+        else
+            if [ $attempt -lt $max_retries ]; then
+                echo "[WAITING] No execution record found yet, waiting ${retry_wait}s before retry..."
+                sleep $retry_wait
+            else
+                echo "[FAILED] No execution record found after $max_retries attempts"
+            fi
+        fi
+    done
+    
     checkStatus=`echo "${checkStatus,,}"`
     if [ "$checkStatus" == "true" ]
     then
@@ -62,7 +86,7 @@ do
       export totaltime=`expr ${totaltime} + ${time}`
     	if [ "$status" != "COMPLETE" ]
         then
-          echo 'Error'
+          echo "Error: Process status is '${status}', expected 'COMPLETE'"
           addTestSuite ${componentId} false ${time}
         	exit 255
         else

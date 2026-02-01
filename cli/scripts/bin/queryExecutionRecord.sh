@@ -9,8 +9,10 @@ JSON_FILE=json/queryExecutionRecord.json
 URL="${baseURL}ExecutionRecord/query"
 id=result[0].executionId
 exportVariable=executionId
-now=`date -u +"%Y-%m-%d"T%H:%M:%SZ --date '+1 min'`
-lag=`date -u +"%Y-%m-%d"T%H:%M:%SZ --date '-3 min'`
+# Wider time window to catch execution records
+# +2 min future, -5 min past (7 minute total window)
+now=`date -u +"%Y-%m-%d"T%H:%M:%SZ --date '+2 min'`
+lag=`date -u +"%Y-%m-%d"T%H:%M:%SZ --date '-5 min'`
 if [ -z "${to}" ]
 then
        to=$now
