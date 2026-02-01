@@ -16,7 +16,7 @@ log_info "Querying atom: ${atomName} (type: ${atomType}, status: ${atomStatus})"
 
 # Try cache first
 cache_key="${atomName}_${atomType}_${atomStatus}"
-cached_atomId=$(cache_get "ATOM_ID" "${cache_key}")
+cached_atomId=$(cache_get "ATOM_ID" "${cache_key}") || true
 
 if [ -n "${cached_atomId}" ]; then
     export atomId="${cached_atomId}"

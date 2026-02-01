@@ -15,7 +15,7 @@ log_info "Querying environment: ${env} (classification: ${classification})"
 
 # Try cache first
 cache_key="${env}_${classification}"
-cached_envId=$(cache_get "ENVIRONMENT_ID" "${cache_key}")
+cached_envId=$(cache_get "ENVIRONMENT_ID" "${cache_key}") || true
 
 if [ -n "${cached_envId}" ]; then
     export envId="${cached_envId}"

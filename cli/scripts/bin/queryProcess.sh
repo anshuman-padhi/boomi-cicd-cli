@@ -15,7 +15,7 @@ log_info "Querying process: ${processName}"
 
 # Try cache first
 cache_key="${processName}"
-cached_componentId=$(cache_get "COMPONENT_ID" "${cache_key}")
+cached_componentId=$(cache_get "COMPONENT_ID" "${cache_key}") || true
 
 if [ -n "${cached_componentId}" ]; then
     export componentId="${cached_componentId}"
