@@ -156,6 +156,129 @@ function retry_command {
   done
 }
 
+###########################################
+# Performance: Response Caching
+###########################################
+
+# Cache configuration
+CACHE_ENABLED="${CACHE_ENABLED:-true}"
+CACHE_TTL_SECONDS="${CACHE_TTL_SECONDS:-300}"  # 5 minutes default
+
+# Initialize cache storage (associative arrays)
+declare -gA BOOMI_CACHE_ENVIRONMENT_ID 2>/dev/null || true
+declare -gA BOOMI_CACHE_ATOM_ID 2>/dev/null || true
+declare -gA BOOMI_CACHE_COMPONENT_ID 2>/dev/null || true
+declare -gA BOOMI_CACHE_TTL 2>/dev/null || true
+
+# Get value from cache
+# Usage: cached_value=$(cache_get "ENVIRONMENT_ID" "Production")
+function cache_get {
+  local cache_type="$1"
+  local key="$2"
+  
+  if [ "${CACHE_ENABLED}" != "true" ]; then
+    return 1
+  fi
+  
+  local cache_var="BOOMI_CACHE_${cache_type}[${key}]"
+  local ttl_var="BOOMI_CACHE_TTL[${cache_type}_${key}]"
+  
+  # Check if value exists in cache
+  local cached_value="${!cache_var}"
+  if [ -z "${cached_value}" ]; then
+    [ "${VERBOSE}" == "true" ] && log_info "Cache MISS: ${cache_type}[${key}]"
+    return 1
+  fi
+  
+  # Check TTL
+  local cached_time="${!ttl_var}"
+  if [ -n "${cached_time}" ]; then
+    local current_time=$(date +%s)
+    local age=$((current_time - cached_time))
+    
+    if [ $age -ge ${CACHE_TTL_SECONDS} ]; then
+      [ "${VERBOSE}" == "true" ] && log_info "Cache EXPIRED: ${cache_type}[${key}] (age: ${age}s)"
+      return 1
+    fi
+    
+    [ "${VERBOSE}" == "true" ] && log_info "Cache HIT: ${cache_type}[${key}] (age: ${age}s)"
+  fi
+  
+  echo "${cached_value}"
+  return 0
+}
+
+# Store value in cache
+# Usage: cache_set "ENVIRONMENT_ID" "Production" "env-123-456"
+function cache_set {
+  local cache_type="$1"
+  local key="$2"
+  local value="$3"
+  
+  if [ "${CACHE_ENABLED}" != "true" ]; then
+    return 0
+  fi
+  
+  # Store value
+  eval "BOOMI_CACHE_${cache_type}[${key}]='${value}'"
+  
+  # Store timestamp
+  local current_time=$(date +%s)
+  eval "BOOMI_CACHE_TTL[${cache_type}_${key}]=${current_time}"
+  
+  [ "${VERBOSE}" == "true" ] && log_info "Cache SET: ${cache_type}[${key}]"
+  return 0
+}
+
+# Clear all caches
+# Usage: cache_clear
+function cache_clear {
+  log_info "Clearing all caches"
+  
+  unset BOOMI_CACHE_ENVIRONMENT_ID
+  unset BOOMI_CACHE_ATOM_ID
+  unset BOOMI_CACHE_COMPONENT_ID
+  unset BOOMI_CACHE_TTL
+  
+  declare -gA BOOMI_CACHE_ENVIRONMENT_ID
+  declare -gA BOOMI_CACHE_ATOM_ID
+  declare -gA BOOMI_CACHE_COMPONENT_ID
+  declare -gA BOOMI_CACHE_TTL
+  
+  return 0
+}
+
+# Print cache statistics
+# Usage: cache_stats
+function cache_stats {
+  echo "=== Cache Statistics ==="
+  echo "Cache Enabled: ${CACHE_ENABLED}"
+  echo "Cache TTL: ${CACHE_TTL_SECONDS}s"
+  
+  local env_count=0
+  local atom_count=0
+  local component_count=0
+  
+  # Count cached entries
+  for key in "${!BOOMI_CACHE_ENVIRONMENT_ID[@]}"; do
+    env_count=$((env_count + 1))
+  done
+  
+  for key in "${!BOOMI_CACHE_ATOM_ID[@]}"; do
+    atom_count=$((atom_count + 1))
+  done
+  
+  for key in "${!BOOMI_CACHE_COMPONENT_ID[@]}"; do
+    component_count=$((component_count + 1))
+  done
+  
+  echo "Cached Environments: ${env_count}"
+  echo "Cached Atoms: ${atom_count}"
+  echo "Cached Components: ${component_count}"
+  echo "======================="
+}
+
+
 function usage {
  echo "Usage: source bin/${BASH_SOURCE[1]} option1=value1 option2=value2 .."
 }
