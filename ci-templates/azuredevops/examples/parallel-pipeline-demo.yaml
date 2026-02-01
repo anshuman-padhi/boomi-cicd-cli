@@ -19,8 +19,8 @@ extends:
     deployToProd: true
 
     # NEW: Cleanup Toggles
-    undeployQA: false
-    undeployUAT: false # Set to true to cleanup UAT after Prod deploy
+    undeployQA: true
+    undeployUAT: true # Set to true to cleanup UAT after Prod deploy
 
     # Comma-separated component IDs to deploy
     componentIds: "dd185596-c539-4d31-97c5-1a46f13eafa4,8d4bd7c8-1071-4ba9-a697-8e5e21a6e229"
