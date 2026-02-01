@@ -2,7 +2,7 @@
 source bin/common.sh
 
 # mandatory arguments
-ARGUMENTS=(componentId envId)
+ARGUMENTS=(componentId envId processId current)
 JSON_FILE=json/queryDeployment.json
 URL=${baseURL}Deployment/query
 id=result[0].id
