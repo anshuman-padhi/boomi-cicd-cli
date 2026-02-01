@@ -305,31 +305,14 @@ See platform-specific troubleshooting in setup guides.
 - **Platform Issues**: Check platform-specific SETUP.md
 - **CLI Issues**: Review [CLI Reference](docs/CLI_REFERENCE.md)
 
-## 📜 License
+## 📜 License & Acknowledgments
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-**Original Work:** Copyright (c) 2021 Boomi Professional Services Organization  
-**Maintained & Enhanced by:** Anshuman Padhi (2026-present)
+Original work by **Boomi Professional Services Organization (PSO)**.  
+Currently maintained and enhanced by **[Anshuman Padhi](https://github.com/anshuman-padhi)** (2026-present).
 
-## 🙏 Acknowledgments
-
-### Original Development
-This framework was originally developed by the **Boomi Professional Services Organization (PSO)** as an internal toolset for automating Boomi deployments. The original codebase provided the foundation for package management, process execution, and multi-platform CI/CD integration.
-
-### Current Status
-The original Boomi PSO version is **no longer maintained or officially supported**. This repository represents a community-driven effort to:
-- ✅ Enhance and modernize the codebase
-- ✅ Add comprehensive documentation
-- ✅ Expand CI/CD platform support
-- ✅ Maintain compatibility with latest Boomi APIs
-- ✅ Provide ongoing community support
-
-### Special Thanks
-- **Boomi PSO Team** - For creating the original CLI framework
-- **Boomi AtomSphere API** - For providing the integration platform
-- **Open Source Community** - For jq, curl, and bash tools
-- **CI/CD Platform Teams** - Azure DevOps, Jenkins, GitHub Actions, etc.
+*Note: This is a community-driven project and is not officially supported by Boomi.*
 
 ### Contributing
 This is now a community-maintained project. Contributions, bug reports, and feature requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
