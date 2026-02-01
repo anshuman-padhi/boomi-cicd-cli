@@ -70,8 +70,10 @@ for componentId in "${componentIdArray[@]}"; do
     else
         echo "DEBUG: Querying Packaged Component without Type (Fallback)"
         # Fallback to version-only query
-        # Ensure componentType is unset so queryPackagedComponent.sh uses the correct logic
+        # Ensure polluted variables are unset so queryPackagedComponent.sh uses the correct logic
         unset componentType
+        unset componentVersion
+        unset componentName
         source bin/queryPackagedComponent.sh componentId="${componentId}" packageVersion="${savePackageVersion}"
     fi
     
