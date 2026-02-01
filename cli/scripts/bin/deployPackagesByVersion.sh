@@ -45,7 +45,11 @@ for componentId in "${componentIdArray[@]}"; do
     # Query Package ID by Version
     if [ -z "${saveComponentType}" ]; then
          echo "DEBUG: Component Type not provided. Querying metadata..."
+         # Save componentId because queryComponentMetadata.sh might overwrite it with null if not found
+         local _loopComponentId="${componentId}"
          source bin/queryComponentMetadata.sh componentId="${componentId}"
+         componentId="${_loopComponentId}"
+         
          # queryComponentMetadata exports componentType, componentId, componentName, etc.
          # If it fails or returns nothing, variables might be empty or literal "null"
          
