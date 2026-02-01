@@ -57,26 +57,16 @@ steps:
       #############
       # Execution #
       #############
-      cd ${SCRIPTS_HOME}
+      echo "Deriving repository root from SCRIPTS_HOME"
+      export REPO_ROOT="${SCRIPTS_HOME%/cli/scripts}"
 
-      source bin/createPackages.sh \
-        componentIds="${componentIds}" \
-        processNames="${processNames}" \
-        componentType="${componentType}" \
-        packageVersion="${packageVersion}" \
-        notes="${notes}" \
-        extractComponentXmlFolder="${extractComponentXmlFolder}" \
-        tag="${tag}" \
-        branchName="${branchName}"
+      cd "${REPO_ROOT}"
+      chmod +x ci-templates/azuredevops/pipelines/*.sh
 
-      if [ "$ERROR" -gt 0 ]; then
-        echo "❌ Package creation failed: $ERROR_MESSAGE"
-        exit 1
-      fi
-
-      echo "✅ Package created successfully: ${packageId}"
-
-      # Export packageId for use in subsequent stages
-      echo "##vso[task.setvariable variable=packageId;isOutput=true]${packageId}"
+      bash -xe ci-templates/azuredevops/pipelines/create_packages.sh
     name: output_variable
     displayName: "Create Boomi Package"
+    env:
+      BUILD_USER: $(Build.RequestedFor)
+      BUILD_USER_ID: $(Build.RequestedForId)
+      BUILD_EVENT: $(Build.Reason)

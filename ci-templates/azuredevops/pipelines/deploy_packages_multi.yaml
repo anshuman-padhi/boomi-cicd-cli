@@ -58,28 +58,15 @@ steps:
       #############
       # Execution #
       #############
-      echo "Deploying packages by Version..."
-      echo "Component IDs: ${componentIds}"
-      echo "Package Version: ${packageVersion}"
-      echo "Environment: ${env}"
+      echo "Deriving repository root from SCRIPTS_HOME"
+      export REPO_ROOT="${SCRIPTS_HOME%/cli/scripts}"
 
-      cd ${SCRIPTS_HOME}
+      cd "${REPO_ROOT}"
+      chmod +x ci-templates/azuredevops/pipelines/*.sh
 
-      # Use the multi-deploy script
-      source bin/deployPackagesByVersion.sh \
-        env="${env}" \
-        packageVersion="${packageVersion}" \
-        componentIds="${componentIds}" \
-        listenerStatus="${listenerStatus}" \
-        notes="${notes}" \
-        componentType="${componentType}"
-
-      RETURN_CODE=$?
-
-      if [ "$ERROR" -gt 0 ] || [ "$RETURN_CODE" -ne 0 ]; then
-        echo "❌ Deployment failed"
-        exit 1
-      fi
-
-      echo "✅ All packages deployed successfully to ${env}"
+      bash -xe ci-templates/azuredevops/pipelines/deploy_packages_multi.sh
     displayName: "Deploy Packages (${{ parameters.packageVersion }}) to ${{ parameters.env }}"
+    env:
+      BUILD_USER: $(Build.RequestedFor)
+      BUILD_USER_ID: $(Build.RequestedForId)
+      BUILD_EVENT: $(Build.Reason)

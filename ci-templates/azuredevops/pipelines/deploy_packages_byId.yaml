@@ -51,34 +51,15 @@ steps:
       #############
       # Execution #
       #############
-      echo "Deploying existing package by ID..."
-      echo "Package ID: ${packageId}"
-      echo "Environment: ${env}"
-      echo "Listener Status: ${listenerStatus}"
+      echo "Deriving repository root from SCRIPTS_HOME"
+      export REPO_ROOT="${SCRIPTS_HOME%/cli/scripts}"
 
-      cd ${SCRIPTS_HOME}
+      cd "${REPO_ROOT}"
+      chmod +x ci-templates/azuredevops/pipelines/*.sh
 
-      # Query environment to get envId
-      source bin/queryEnvironment.sh env="${env}" classification="*"
-
-      if [ "$ERROR" -gt 0 ]; then
-        echo "❌ Failed to query environment: $ERROR_MESSAGE"
-        exit 1
-      fi
-
-      echo "Environment ID: ${envId}"
-
-      # Deploy the existing package (does NOT create new package)
-      source bin/createDeployedPackage.sh \
-        envId="${envId}" \
-        packageId="${packageId}" \
-        listenerStatus="${listenerStatus}" \
-        notes="${notes}"
-
-      if [ "$ERROR" -gt 0 ]; then
-        echo "❌ Deployment failed: $ERROR_MESSAGE"
-        exit 1
-      fi
-
-      echo "✅ Package ${packageId} deployed successfully to ${env}"
+      bash -xe ci-templates/azuredevops/pipelines/deploy_packages_byId.sh
     displayName: "Deploy Package ${{ parameters.packageId }} to ${{ parameters.env }}"
+    env:
+      BUILD_USER: $(Build.RequestedFor)
+      BUILD_USER_ID: $(Build.RequestedForId)
+      BUILD_EVENT: $(Build.Reason)
