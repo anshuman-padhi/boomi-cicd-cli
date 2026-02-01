@@ -5,16 +5,19 @@ source bin/common.sh
 ARGUMENTS=(env) 
 OPT_ARGUMENTS=(componentIds processNames)
 inputs "$@"
-if [ "$?" -gt "0" ]
-then
-    return 255;
-fi
+handle_error "$?" "Failed to process input arguments" || return 1
+
+log_info "Starting package undeployment from environment: ${env}"
 
 saveEnv="${env}"
 
 # Get Environment ID
+log_info "Querying environment: ${env}"
 source bin/queryEnvironment.sh env="$env" classification="*"
+handle_error "$ERROR" "Failed to query environment: ${env}" || return 1
+
 saveEnvId=${envId}
+log_info "Environment ID: ${envId}"
 
 if [ -z "${componentIds}" ]
 then
@@ -27,24 +30,23 @@ then
     source bin/queryComponentMetadata.sh componentName="${processName}" componentType="process" componentId="${componentId}" currentVersion="" deleted=""
     
     if [ ! -z "${componentId}" ]; then
-       echov "Undeploying process $processName ($componentId)"
+       log_info "Undeploying process: ${processName} (${componentId})"
        source bin/undeployPackage.sh componentId=${componentId} envId=${saveEnvId}
     else
-       echo "Detailed component ID not found for process $processName"
+       log_warn "Component ID not found for process: ${processName}"
     fi
  	done   
 else    
 	IFS=',' ;for componentId in `echo "${componentIds}"`; 
 	do 
     componentId=`echo "${componentId}" | xargs`
-    echov "Undeploying component $componentId"
+    log_info "Undeploying component: ${componentId}"
     source bin/undeployPackage.sh componentId=${componentId} envId=${saveEnvId}
  	done   
 fi  
 
 clean
 
-if [ "$ERROR" -gt 0 ]
-then
-   return 255;
-fi
+handle_error "$ERROR" "Package undeployment failed" || return 1
+
+log_info "Successfully undeployed packages from ${env}"

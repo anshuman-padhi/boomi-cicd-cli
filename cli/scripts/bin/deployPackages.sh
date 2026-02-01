@@ -11,10 +11,9 @@ source "${SCRIPTS_HOME}/bin/common.sh"
 ARGUMENTS=(env packageVersion notes listenerStatus) 
 OPT_ARGUMENTS=(componentIds processNames extractComponentXmlFolder tag componentType)
 inputs "$@"
-if [ "$?" -gt "0" ]
-then
-    return 255;
-fi
+handle_error "$?" "Failed to process input arguments" || return 1
+
+log_info "Starting package deployment to environment: ${env}"
 
 if [ ! -z "${extractComponentXmlFolder}" ]
 then
@@ -31,8 +30,12 @@ saveComponentType="${componentType}"
 saveTag="${tag}"
 unset tag
 
+log_info "Querying environment: ${env}"
 source "${SCRIPTS_HOME}/bin/queryEnvironment.sh" env="$env" classification="*"
+handle_error "$ERROR" "Failed to query environment: ${env}" || return 1
+
 saveEnvId=${envId}
+log_info "Environment ID: ${envId}"
 if [ -z "${componentIds}" ]
 then
 	IFS=',' ;for processName in `echo "${processNames}"`; 
@@ -69,10 +72,9 @@ fi
 handleXmlComponents "${saveExtractComponentXmlFolder}" "${saveTag}" "${saveNotes}"
 export envId=${saveEnvId}
 
-if [ "$ERROR" -gt 0 ]
-then
-   return 255;
-fi
+handle_error "$ERROR" "Package deployment failed" || return 1
+
+log_info "Successfully deployed packages to ${env}"
 
 if [ ! -z "${extensionJson}" ]
 then
