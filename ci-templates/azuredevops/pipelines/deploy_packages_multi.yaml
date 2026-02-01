@@ -1,6 +1,6 @@
-#################################################
-# Deploy Multiple Packages by Version Template  #
-#################################################
+###########################################
+# Deploy Multiple Packages Template
+###########################################
 
 parameters:
   #####################
@@ -14,16 +14,18 @@ parameters:
   SLEEP_TIMER: ""
   WORKSPACE: ""
   SCRIPTS_HOME: ""
+  BUILD_USER_ID: ""
+
   #######################
   # Specific parameters #
   #######################
-  componentIds: ""
-  packageVersion: ""
-  env: ""
-  notes: ""
-  listenerStatus: "RUNNING"
-  componentType: ""
-  branchName: ""
+  branchName: "" # Optional: Boomi branch name
+  componentIds: "" # Comma-separated component IDs to deploy
+  componentType: "" # Component type filter
+  env: "" # Target environment name for deployment
+  listenerStatus: "RUNNING" # Listener status after deployment (RUNNING/PAUSED)
+  notes: "" # Deployment notes
+  packageVersion: "" # Package version to deploy
 
 steps:
   - script: |

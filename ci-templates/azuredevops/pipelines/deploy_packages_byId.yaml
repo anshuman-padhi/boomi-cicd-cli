@@ -1,6 +1,6 @@
-#################################################
-# Deploy Package by ID Template for Boomi      #
-#################################################
+###########################################
+# Deploy Package by ID Template
+###########################################
 
 parameters:
   #####################
@@ -14,13 +14,15 @@ parameters:
   SLEEP_TIMER: ""
   WORKSPACE: ""
   SCRIPTS_HOME: ""
+  BUILD_USER_ID: ""
+
   #######################
   # Specific parameters #
   #######################
-  packageId: ""
-  env: ""
-  notes: ""
-  listenerStatus: "RUNNING"
+  env: "" # Target environment name for deployment
+  listenerStatus: "RUNNING" # Listener status after deployment (RUNNING/PAUSED)
+  notes: "" # Deployment notes
+  packageId: "" # Existing package ID to deploy
 
 steps:
   - script: |
