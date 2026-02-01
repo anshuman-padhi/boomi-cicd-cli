@@ -57,6 +57,18 @@ steps:
       #############
       # Execution #
       #############
+      cd ${SCRIPTS_HOME}
+
+      source bin/createPackages.sh \
+        componentIds="${componentIds}" \
+        processNames="${processNames}" \
+        componentType="${componentType}" \
+        packageVersion="${packageVersion}" \
+        notes="${notes}" \
+        extractComponentXmlFolder="${extractComponentXmlFolder}" \
+        tag="${tag}" \
+        branchName="${branchName}"
+
       if [ "$ERROR" -gt 0 ]; then
         echo "❌ Package creation failed: $ERROR_MESSAGE"
         exit 1
