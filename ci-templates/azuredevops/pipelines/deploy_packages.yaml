@@ -1,6 +1,6 @@
-#########################################
-# Package Deployment Template for Boomi #
-#########################################
+###########################################
+# Deploy Packages Template
+###########################################
 
 parameters:
   #####################
@@ -14,18 +14,21 @@ parameters:
   SLEEP_TIMER: ""
   WORKSPACE: ""
   SCRIPTS_HOME: ""
+  BUILD_USER_ID: ""
+
   #######################
   # Specific parameters #
   #######################
-  componentIds: []
-  componentType: ""
-  env: ""
-  notes: ""
-  packageVersion: ""
-  packageName: "Package"
-  listenerStatus: "RUNNING"
-  extractComponentXmlFolder: ""
-  branchName: ""
+  branchName: "" # Optional: Boomi branch name
+  componentIds: "" # Comma-separated component IDs (alternative to processNames)
+  componentType: "" # Component type filter
+  env: "" # Target environment name for deployment
+  extractComponentXmlFolder: "" # Optional: folder for XML extraction
+  listenerStatus: "RUNNING" # Listener status after deployment (RUNNING/PAUSED)
+  notes: "" # Deployment notes
+  packageName: "Package" # Package display name
+  packageVersion: "" # Package version string
+  processNames: "" # Comma-separated process names (alternative to componentIds)
 
 steps:
   - script: |
@@ -40,26 +43,32 @@ steps:
       export SLEEP_TIMER="${{ parameters.SLEEP_TIMER }}"
       export WORKSPACE="${{ parameters.WORKSPACE }}"
       export SCRIPTS_HOME="${{ parameters.SCRIPTS_HOME }}"
-      export BUILD_USER="$(Build.RequestedFor)"
-      export BUILD_USER_ID="$(Build.RequestedForEmail)"
-      export BUILD_EVENT="$(Build.Reason)"
+
       ######################
       # Specific variables #
       ######################
-      export componentIds=${{ parameters.componentIds }}
+      export branchName="${{ parameters.branchName }}"
+      export componentIds="${{ parameters.componentIds }}"
       export componentType="${{ parameters.componentType }}"
       export env="${{ parameters.env }}"
+      export extractComponentXmlFolder="${{ parameters.extractComponentXmlFolder }}"
+      export listenerStatus="${{ parameters.listenerStatus }}"
       export notes="${{ parameters.notes }}"
       export packageVersion="${{ parameters.packageVersion }}"
-      export listenerStatus="${{ parameters.listenerStatus }}"
-      export extractComponentXmlFolder="${{ parameters.extractComponentXmlFolder }}"
-      export branchName="${{ parameters.branchName }}"
+      export processNames="${{ parameters.processNames }}"
+
       #############
       # Execution #
       #############
-      echo "Derived REPO_ROOT from SCRIPTS_HOME"
+      echo "Deriving repository root from SCRIPTS_HOME"
       export REPO_ROOT="${SCRIPTS_HOME%/cli/scripts}"
-      echo "Moving to ${REPO_ROOT}"
+
       cd "${REPO_ROOT}"
       chmod +x ci-templates/azuredevops/pipelines/*.sh
+
       bash -xe ci-templates/azuredevops/pipelines/deploy_packages.sh
+    displayName: "Deploy Packages - ${{ parameters.env }}"
+    env:
+      BUILD_USER: $(Build.RequestedFor)
+      BUILD_USER_ID: $(Build.RequestedForId)
+      BUILD_EVENT: $(Build.Reason)

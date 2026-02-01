@@ -1,6 +1,6 @@
-#########################################
-# Create Packages Template for Boomi   #
-#########################################
+#####################################################
+# Create Packages Template
+###########################################
 
 parameters:
   #####################
@@ -14,14 +14,19 @@ parameters:
   SLEEP_TIMER: ""
   WORKSPACE: ""
   SCRIPTS_HOME: ""
+  BUILD_USER_ID: ""
+
   #######################
   # Specific parameters #
   #######################
-  componentIds: []
-  packageVersion: ""
-  notes: ""
-  branchName: ""
-  componentType: ""
+  branchName: "" # Optional: Boomi branch name for component packaging
+  componentIds: "" # Comma-separated component IDs (alternative to processNames)
+  componentType: "" # Component type filter
+  extractComponentXmlFolder: "" # Optional: folder for XML extraction
+  notes: "" # Package creation notes
+  packageVersion: "" # Package version string
+  processNames: "" # Comma-separated process names (alternative to componentIds)
+  tag: "" # Optional: Git tag for release
 
 steps:
   - script: |
@@ -36,34 +41,22 @@ steps:
       export SLEEP_TIMER="${{ parameters.SLEEP_TIMER }}"
       export WORKSPACE="${{ parameters.WORKSPACE }}"
       export SCRIPTS_HOME="${{ parameters.SCRIPTS_HOME }}"
-      export BUILD_USER="$(Build.RequestedFor)"
-      export BUILD_USER_ID="$(Build.RequestedForEmail)"
-      export BUILD_EVENT="$(Build.Reason)"
+
       ######################
       # Specific variables #
       ######################
-      export componentIds=${{ parameters.componentIds }}
-      export packageVersion="${{ parameters.packageVersion }}"
-      export notes="${{ parameters.notes }}"
       export branchName="${{ parameters.branchName }}"
+      export componentIds="${{ parameters.componentIds }}"
       export componentType="${{ parameters.componentType }}"
+      export extractComponentXmlFolder="${{ parameters.extractComponentXmlFolder }}"
+      export notes="${{ parameters.notes }}"
+      export packageVersion="${{ parameters.packageVersion }}"
+      export processNames="${{ parameters.processNames }}"
+      export tag="${{ parameters.tag }}"
 
       #############
       # Execution #
       #############
-      echo "Creating Boomi package..."
-      echo "Component IDs: ${componentIds}"
-      echo "Package Version: ${packageVersion}"
-      echo "Branch Name: ${branchName}"
-
-      cd ${SCRIPTS_HOME}
-      source bin/createPackages.sh \
-        componentIds="${componentIds}" \
-        packageVersion="${packageVersion}" \
-        notes="${notes}" \
-        branchName="${branchName}" \
-        componentType="${componentType}"
-
       if [ "$ERROR" -gt 0 ]; then
         echo "❌ Package creation failed: $ERROR_MESSAGE"
         exit 1
