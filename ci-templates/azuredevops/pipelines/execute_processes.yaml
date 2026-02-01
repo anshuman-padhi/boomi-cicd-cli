@@ -43,7 +43,9 @@ steps:
       #############
       # Execution #
       #############
-      echo "ARA: Moving to $(Build.Repository.LocalPath)"
-      cd $(Build.Repository.LocalPath)
+      echo "Derived REPO_ROOT from SCRIPTS_HOME"
+      export REPO_ROOT="${SCRIPTS_HOME%/cli/scripts}"
+      echo "Moving to ${REPO_ROOT}"
+      cd "${REPO_ROOT}"
       chmod +x ci-templates/azuredevops/pipelines/*.sh
       bash -xe ci-templates/azuredevops/pipelines/execute_processes.sh
