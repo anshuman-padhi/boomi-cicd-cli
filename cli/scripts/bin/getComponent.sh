@@ -7,11 +7,9 @@ unset version
 ARGUMENTS=(componentId)
 OPT_ARGUMENTS=version
 inputs "$@"
+handle_error "$?" "Failed to process input arguments" || return 1
 
-if [ "$?" -gt "0" ]
-then
-   return 255;
-fi
+log_info "Retrieving component: ${componentId} ${version:+(version: ${version})}"
 
 if [ "" != "$version" ]
 then

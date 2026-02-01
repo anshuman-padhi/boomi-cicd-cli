@@ -9,10 +9,9 @@ ARGUMENTS=(componentId componentType packageVersion notes createdDate)
 OPT_ARGUMENTS=(componentVersion branchName) 
 createdDate=`date -u +"%Y-%m-%d"T%H:%M:%SZ`
 inputs "$@"
-if [ "$?" -gt "0" ]
-then
-        return 255;
-fi
+handle_error "$?" "Failed to process input arguments" || return 1
+
+log_info "Creating packaged component: ${componentId} (version: ${packageVersion})"
 
 URL="${baseURL}PackagedComponent"
 id=packageId
