@@ -161,6 +161,10 @@ stages:
             displayName: "Deploy Test Components to QA"
             dependsOn: deploy_package
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - ${{if parameters.test_componentIds}}:
                   - template: deploy_packages_multi.yaml
                     parameters:
@@ -348,6 +352,10 @@ stages:
             displayName: "Deploy Test Components to UAT"
             dependsOn: deploy_package
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - ${{if parameters.test_componentIds}}:
                   - template: deploy_packages_multi.yaml
                     parameters:
