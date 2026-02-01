@@ -105,6 +105,11 @@ stages:
           - checkout: self
           - ${{ if ne(parameters.scriptsRepo, 'self') }}:
               - checkout: ${{ parameters.scriptsRepo }}
+                path: ${{ parameters.scriptsRepo }}
+          - script: |
+              echo "List Agent.BuildDirectory:"
+              ls -R $(Agent.BuildDirectory)
+            displayName: "DEBUG: List Files"
           - template: create_packages.yaml
             parameters:
               h1: $(h1)
