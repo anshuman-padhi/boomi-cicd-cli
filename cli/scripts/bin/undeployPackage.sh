@@ -27,7 +27,7 @@ then
   echov "Found deploymentId: $deploymentId"
   
   # 2. Delete deployment (Undeploy)
-  URL=${baseURL}Deployment/$deploymentId
+  URL=${baseURL}DeployedPackage/$deploymentId
   
   if [ ! -z ${SLEEP_TIMER} ]; then sleep ${SLEEP_TIMER}; fi
   
