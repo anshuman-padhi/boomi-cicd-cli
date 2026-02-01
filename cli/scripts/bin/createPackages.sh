@@ -5,10 +5,9 @@ source bin/common.sh
 ARGUMENTS=(packageVersion notes) 
 OPT_ARGUMENTS=(componentIds processNames extractComponentXmlFolder tag componentType branchName)
 inputs "$@"
-if [ "$?" -gt "0" ]
-then
-    return 255;
-fi
+
+# Use new error handler
+handle_error "$?" "Failed to process input arguments" || return 1
 
 if [ ! -z "${extractComponentXmlFolder}" ]
 then
@@ -58,9 +57,7 @@ handleXmlComponents "${saveExtractComponentXmlFolder}" "${saveTag}" "${saveNotes
 
 clean
 
-if [ "$ERROR" -gt 0 ]
-then
-   return 255;
-fi
+# Use new errorhandler
+handle_error "$ERROR" "Package creation failed" || return 1
 
 printExtensions

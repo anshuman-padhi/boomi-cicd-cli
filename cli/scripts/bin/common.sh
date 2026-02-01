@@ -75,6 +75,87 @@ function check_scripts_home {
 check_dependencies || exit 1
 check_scripts_home || exit 1
 
+###########################################
+# Enhanced Error Handling & Logging
+###########################################
+
+# Logging utilities with standardized output
+function log_info {
+  local message="$1"
+  echo "[INFO] $message"
+}
+
+function log_warn {
+  local message="$1"
+  echo "[WARN] $message" >&2
+}
+
+function log_error {
+  local message="$1"
+  echo "[ERROR] $message" >&2
+}
+
+# Enhanced error handler with descriptive messages
+# Usage: handle_error $exit_code "Error message" || return 1
+function handle_error {
+  local exit_code="${1:-0}"
+  local error_msg="${2:-Script failed}"
+  
+  if [ "$exit_code" -gt 0 ]; then
+    log_error "$error_msg (exit code: $exit_code)"
+    export ERROR=$exit_code
+    export ERROR_MESSAGE="$error_msg"
+    return $exit_code
+  fi
+  
+  return 0
+}
+
+# Validate required variables are set
+# Usage: validate_required_vars "VAR1" "VAR2" "VAR3" || return 1
+function validate_required_vars {
+  local missing_vars=()
+  
+  for var_name in "$@"; do
+    if [ -z "${!var_name}" ]; then
+      missing_vars+=("$var_name")
+    fi
+  done
+  
+  if [ ${#missing_vars[@]} -gt 0 ]; then
+    log_error "Missing required variables: ${missing_vars[*]}"
+    return 1
+  fi
+  
+  return 0
+}
+
+# Retry mechanism for API calls (future enhancement)
+# Usage: retry_command 3 5 "curl ..."
+function retry_command {
+  local max_attempts="${1:-3}"
+  local wait_seconds="${2:-5}"
+  shift 2
+  local command="$@"
+  
+  local attempt=1
+  while [ $attempt -le $max_attempts ]; do
+    if eval "$command"; then
+      return 0
+    else
+      local exit_code=$?
+      if [ $attempt -lt $max_attempts ]; then
+        log_warn "Command failed (attempt $attempt/$max_attempts), retrying in ${wait_seconds}s..."
+        sleep $wait_seconds
+      else
+        log_error "Command failed after $max_attempts attempts"
+        return $exit_code
+      fi
+    fi
+    ((attempt++))
+  done
+}
+
 function usage {
  echo "Usage: source bin/${BASH_SOURCE[1]} option1=value1 option2=value2 .."
 }
