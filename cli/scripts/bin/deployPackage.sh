@@ -27,9 +27,19 @@ saveTag="${tag}"
 
 
 source bin/createSinglePackage.sh componentId=${componentId} processName="${processName}" componentType="${componentType}" componentVersion="${componentVersion}" packageVersion="$packageVersion" notes="$notes" extractComponentXmlFolder="${extractComponentXmlFolder}" 
+handle_error "$?" "Failed to create package" || return 1
+if [ -z "$packageId" ] || [ "$packageId" == "null" ]; then
+    log_error "Package ID is empty after package creation"
+    return 255
+fi
 notes="${saveNotes}";
 
 source bin/queryEnvironment.sh env="$env" classification="*"
+handle_error "$?" "Failed to query environment: $env" || return 1
+if [ -z "$envId" ] || [ "$envId" == "null" ]; then
+    log_error "Environment ID is empty for environment: $env"
+    return 255
+fi
 saveEnvId=${envId}
 
 source bin/createDeployedPackage.sh envId=${envId} listenerStatus="${listenerStatus}" packageId=$packageId notes="$notes"

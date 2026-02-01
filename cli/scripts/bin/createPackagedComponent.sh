@@ -2,6 +2,7 @@
 source bin/common.sh
 # Query processattachment id before creating it
 source bin/queryPackagedComponent.sh "$@"
+handle_error "$?" "Failed to query packaged component" || return 1
 
 
 # mandatory arguments

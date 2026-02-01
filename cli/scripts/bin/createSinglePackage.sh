@@ -19,10 +19,20 @@ then
     componentType="${saveComponentType}"
     componentId=""
 		source bin/queryComponentMetadata.sh componentName="${processName}" componentType="${componentType}" componentId="${componentId}"	currentVersion="" deleted=""
+		handle_error "$?" "Failed to query component metadata for: ${processName}" || return 1
+		if [ -z "$componentId" ] || [ "$componentId" == "null" ]; then
+		    log_error "Component ID is empty for process: ${processName}"
+		    return 255
+		fi
 		saveComponentName="${componentName}"
     saveComponentId="${componentId}"
     saveComponentVersion="${componentVersion}"
 		source bin/createPackagedComponent.sh componentId=${componentId} componentType="${componentType}" packageVersion="${packageVersion}" notes="${notes}" componentVersion="${componentVersion}" branchName="${branchName}"
+		handle_error "$?" "Failed to create packaged component for: ${componentId}" || return 1
+		if [ -z "$packageId" ] || [ "$packageId" == "null" ]; then
+		    log_error "Package ID is empty after creating package"
+		    return 255
+		fi
 		echov "Created package ${packageId} for process ${saveProcessName}"
 else    
 		notes="${saveNotes}"
@@ -32,9 +42,15 @@ else
     componentType="${saveComponentType}"
 		processName=""
 		source bin/queryComponentMetadata.sh componentName="${processName}" componentType="${componentType}" componentId="${componentId}" currentVersion="" deleted=""
+		handle_error "$?" "Failed to query component metadata for ID: ${componentId}" || return 1
 		saveComponentName="${componentName}"
     saveComponentVersion="${componentVersion}"
 		source bin/createPackagedComponent.sh componentId=${componentId} componentType="${componentType}" packageVersion="${packageVersion}" notes="${notes}" componentVersion="${componentVersion}" branchName="${branchName}"
+		handle_error "$?" "Failed to create packaged component for: ${componentId}" || return 1
+		if [ -z "$packageId" ] || [ "$packageId" == "null" ]; then
+		    log_error "Package ID is empty after creating package"
+		    return 255
+		fi
 		echov "Created package ${packageId} for componentId ${saveComponentId}"
 fi  
 

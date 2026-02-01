@@ -6,6 +6,7 @@ source bin/common.sh
 echo "$@"
 unset deploymentId
 source bin/queryDeployedPackage.sh "$@"
+handle_error "$?" "Failed to query deployed package" || return 1
 
 
 # mandatory arguments

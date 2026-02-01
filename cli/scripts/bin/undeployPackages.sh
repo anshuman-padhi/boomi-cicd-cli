@@ -28,6 +28,7 @@ then
     # Query Component ID for the process name
     componentId=""
     source bin/queryComponentMetadata.sh componentName="${processName}" componentType="process" componentId="${componentId}" currentVersion="" deleted=""
+    handle_error "$?" "Failed to query component metadata for: ${processName}" || return 1
     
     if [ ! -z "${componentId}" ]; then
        log_info "Undeploying process: ${processName} (${componentId})"
