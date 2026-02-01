@@ -27,46 +27,56 @@ if [ -z "${componentIds}" ]; then
     return 255
 fi
 
-for componentId in `echo "${componentIds}" | tr ',' ' '`; do 
-    componentId=`echo "${componentId}" | xargs`
+# Use IFS for robust comma separation
+IFS=',' read -r -a componentIdArray <<< "${componentIds}"
+
+for componentId in "${componentIdArray[@]}"; do
+    # Trim whitespace
+    componentId=$(echo "${componentId}" | xargs)
+    
     if [ -z "${componentId}" ]; then
         continue
     fi
     unset packageId
-    echo "Processing Component ID: ${componentId}"
+    echo "================================================================================"
+    echo "DEBUG: Starting Processing for Component ID: '${componentId}'"
+    echo "================================================================================"
     
     # Query Package ID by Version
     if [ -z "${saveComponentType}" ]; then
-         echo "Component Type not provided. Querying metadata for ${componentId}..."
+         echo "DEBUG: Component Type not provided. Querying metadata..."
          source bin/queryComponentMetadata.sh componentId="${componentId}"
          if [ "$ERROR" -gt 0 ]; then
             echo "Error: Could not retrieve metadata for component ${componentId}"
+            # Ensure we fail the pipeline if metadata lookup fails
             return 255
          fi
          # queryComponentMetadata exports componentType, componentId, componentName, etc.
          # capture it
          useComponentType="${componentType}"
-         echo "Retrieved Component Type: ${useComponentType}"
+         echo "DEBUG: Retrieved Component Type: ${useComponentType}"
     else
          useComponentType="${saveComponentType}"
     fi
 
     if [ -n "${useComponentType}" ]; then
+        echo "DEBUG: Querying Packaged Component with Type: ${useComponentType}"
         source bin/queryPackagedComponent.sh componentId="${componentId}" packageVersion="${savePackageVersion}" componentType="${useComponentType}"
     else
+        echo "DEBUG: Querying Packaged Component without Type (Fallback)"
         # Fallback to version-only query if for some reason type is still missing
         source bin/queryPackagedComponent.sh componentId="${componentId}" packageVersion="${savePackageVersion}"
     fi
     
     if [ "$ERROR" -gt 0 ] || [ -z "${packageId}" ]; then
         echo "Error: Could not find package for component ${componentId} with version ${savePackageVersion}"
-        # We might want to continue or fail. Let's fail for now to be safe.
         return 255
     fi
     
-    echo "Found Package ID: ${packageId}"
+    echo "DEBUG: Found Package ID: ${packageId}"
     
     # Deploy
+    echo "DEBUG: Creating Deployed Package..."
     source bin/createDeployedPackage.sh envId="${saveEnvId}" packageId="${packageId}" listenerStatus="${saveListenerStatus}" notes="${saveNotes}"
     
     if [ "$ERROR" -gt 0 ]; then
@@ -74,6 +84,7 @@ for componentId in `echo "${componentIds}" | tr ',' ' '`; do
         return 255
     fi
     
+    echo "DEBUG: Successfully deployed component ${componentId}"
 done
 
 clean
