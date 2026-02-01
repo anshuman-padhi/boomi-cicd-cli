@@ -186,7 +186,7 @@ function cache_get {
   # Check if value exists in cache
   local cached_value="${!cache_var}"
   if [ -z "${cached_value}" ]; then
-    [ "${VERBOSE}" == "true" ] && log_info "Cache MISS: ${cache_type}[${key}]"
+    [ "${VERBOSE}" == "true" ] && echo "[INFO] Cache MISS: ${cache_type}[${key}]" >&2
     return 1
   fi
   
@@ -197,11 +197,11 @@ function cache_get {
     local age=$((current_time - cached_time))
     
     if [ $age -ge ${CACHE_TTL_SECONDS} ]; then
-      [ "${VERBOSE}" == "true" ] && log_info "Cache EXPIRED: ${cache_type}[${key}] (age: ${age}s)"
+      [ "${VERBOSE}" == "true" ] && echo "[INFO] Cache EXPIRED: ${cache_type}[${key}] (age: ${age}s)" >&2
       return 1
     fi
     
-    [ "${VERBOSE}" == "true" ] && log_info "Cache HIT: ${cache_type}[${key}] (age: ${age}s)"
+    [ "${VERBOSE}" == "true" ] && echo "[INFO] Cache HIT: ${cache_type}[${key}] (age: ${age}s)" >&2
   fi
   
   echo "${cached_value}"
@@ -226,7 +226,7 @@ function cache_set {
   local current_time=$(date +%s)
   eval "BOOMI_CACHE_TTL[${cache_type}_${key}]=${current_time}"
   
-  [ "${VERBOSE}" == "true" ] && log_info "Cache SET: ${cache_type}[${key}]"
+  [ "${VERBOSE}" == "true" ] && echo "[INFO] Cache SET: ${cache_type}[${key}]" >&2
   return 0
 }
 
