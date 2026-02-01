@@ -18,7 +18,7 @@ else
 	version=""
 fi
 
-export URL=$baseURL/Component/${componentId}${version}
+export URL="${baseURL}Component/${componentId}${version}"
 
 getXMLAPI
 

@@ -24,7 +24,7 @@ processId="${componentId}"
 
 ARGUMENTS=(atomId processId)
 JSON_FILE=json/queryProcessScheduleStatus.json
-URL=$baseURL/ProcessScheduleStatus/query
+URL="${baseURL}ProcessScheduleStatus/query"
 id=result[0].id
 exportVariable=scheduleId
 

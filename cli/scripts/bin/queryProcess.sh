@@ -4,7 +4,7 @@ source bin/common.sh
 # mandatory arguments
 ARGUMENTS=(processName)
 JSON_FILE=json/queryProcess.json
-URL=$baseURL/Process/query
+URL="${baseURL}Process/query"
 id=result[0].id
 exportVariable=processId
 

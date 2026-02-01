@@ -4,7 +4,7 @@ source bin/common.sh
 saveVerbose=${VERBOSE}
 unset VERBOSE
 JSON_FILE=json/queryAny.json
-URL=$baseURL/Atom/query
+URL="${baseURL}Atom/query"
 REPORT_TITLE="List of Atoms"
 REPORT_HEADERS=("#" "Atom Id" "Atom Name" "Env Name" "Status")
 queryToken="new"
@@ -36,7 +36,7 @@ do
 				env=""
 				if [ null != "${envId}" ]
 				then
-					URL=$baseURL/Environment/${envId}
+					URL="${baseURL}Environment/${envId}"
 					env=`curl -s -X GET -u $authToken -H "${h1}" -H "${h2}" $URL | jq -r .name`
 				fi
 				printReportRow "${h}" "${atomId}" "${names[$k]}" "${env}" "${statuss[$k]}"	
@@ -44,7 +44,7 @@ do
 				k=$(( $k + 1 ));
 		done
 				
-		URL=$baseURL/Process/queryMore
+		URL="${baseURL}Process/queryMore"
 		extract queryToken queryToken
 done
 

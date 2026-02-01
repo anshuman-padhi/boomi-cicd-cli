@@ -13,7 +13,7 @@ then
         return 255;
 fi
 
-URL=$baseURL/PackagedComponentManifest
+URL="${baseURL}PackagedComponentManifest"
 REPORT_TITLE="Packaged Components Manifest"
 REPORT_HEADERS=("#" "Package ID" "Component ID" "Component Name" "Component Type" "Sub Type" "Version" "Current" "Touched By" "Folder Name")
 printReportHead
@@ -24,7 +24,7 @@ unset componentVersions
 for packageId in `echo "${packageIds}"`
 do
 	packageId=`echo $packageId | xargs`
-	URL=$baseURL/PackagedComponentManifest/${packageId}
+	URL="${baseURL}PackagedComponentManifest/${packageId}"
   getAPI	
   
   if [ "$ERROR" -gt "0" ]

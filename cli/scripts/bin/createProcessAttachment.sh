@@ -11,7 +11,7 @@ fi
 # mandatory arguments
 ARGUMENTS=(processId envId componentType)
 JSON_FILE=json/createProcessAttachment.json
-URL=$baseURL/ProcessEnvironmentAttachment/
+URL="${baseURL}ProcessEnvironmentAttachment/"
 id=id
 exportVariable=processAttachmentId
 inputs "$@"

@@ -5,7 +5,7 @@ source bin/common.sh
 # mandatory arguments
 ARGUMENTS=(roleName)
 JSON_FILE=json/queryRole.json
-URL=$baseURL/Role/query
+URL="${baseURL}Role/query"
 id=result[0].id
 exportVariable=roleId
 

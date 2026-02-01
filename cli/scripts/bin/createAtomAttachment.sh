@@ -4,7 +4,7 @@ source bin/common.sh
 # mandatory arguments
 ARGUMENTS=(atomId envId)
 JSON_FILE=json/createAtomAttachment.json
-URL=$baseURL/EnvironmentAtomAttachment/
+URL="${baseURL}EnvironmentAtomAttachment/"
 id=id
 exportVariable=atomAttachmentId
 

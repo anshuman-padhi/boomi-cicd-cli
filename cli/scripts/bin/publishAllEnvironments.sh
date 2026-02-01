@@ -6,7 +6,7 @@ unset VERBOSE
 saveVerbose="${VERBOSE}"
 
 # mandatory arguments
-URL=$baseURL/Environment/query
+URL="${baseURL}Environment/query"
 JSON_FILE=json/queryEnvironmentAny.json
 REPORT_TITLE="List of All Environments"
 REPORT_HEADERS=("#" "Id" "Classification" "Name")
@@ -34,7 +34,7 @@ do
   	h=$(( $h + 1 ))
  	done
   extract queryToken queryToken
-	URL=$baseURL/Environment/queryMore
+	URL="${baseURL}Environment/queryMore"
 done
 
 printReportTail

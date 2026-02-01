@@ -46,7 +46,7 @@ while IFS= read -r line
         fi
  done < "$TMP_JSON_FILE"
 
-URL=$baseURL/EnvironmentExtensions/${envId}/update
+URL="${baseURL}EnvironmentExtensions/${envId}/update"
  
 callAPI
  

@@ -7,7 +7,7 @@ unset VERBOSE
 # mandatory arguments
 ARGUMENTS=(processName)
 JSON_FILE=json/searchProcess.json
-URL=$baseURL/Process/query
+URL="${baseURL}Process/query"
 append="%"
 REPORT_TITLE="List of Processes"
 REPORT_HEADERS=("#" "Process Id" "Process Name")
@@ -42,7 +42,7 @@ do
 		i=$(( $i + 1 )); 
   done
 	extract queryToken queryToken 
-	URL=$baseURL/Process/queryMore
+	URL="${baseURL}Process/queryMore"
 done
 
 printReportTail

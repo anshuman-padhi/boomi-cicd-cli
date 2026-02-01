@@ -14,7 +14,7 @@ source bin/queryEnvironment.sh name=$envName classification="*"
 
 ARGUMENTS=(roleId envId)
 JSON_FILE=json/createEnvironmentRole.json
-URL=$baseURL/EnvironmentRole/
+URL="${baseURL}EnvironmentRole/"
 id=id
 exportVariable=roleattachmentId
 

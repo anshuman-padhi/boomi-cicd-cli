@@ -26,7 +26,7 @@ source bin/createProcessAttachment.sh envId=$toEnvId processId=$processId compon
 
 source bin/queryDeployment.sh processId=$deployProcessId envId=$fromEnvId version=$version current=$current
 
-URL=$baseURL/deployProcess/${deploymentId}/${toEnvId}/$digest?listenerStatus=${listenerStatus}
+URL="${baseURL}deployProcess/${deploymentId}/${toEnvId}/$digest?listenerStatus=${listenerStatus}"
 
 curl -s -X POST -u $authToken -H "${h1}" -H "${h2}" $URL > out.json
 

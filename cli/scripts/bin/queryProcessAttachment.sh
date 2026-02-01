@@ -5,7 +5,7 @@ source bin/common.sh
 # mandatory arguments
 ARGUMENTS=(processId envId componentType)
 JSON_FILE=json/queryProcessAttachment.json
-URL=$baseURL/ProcessEnvironmentAttachment/query
+URL="${baseURL}ProcessEnvironmentAttachment/query"
 id=result[0].id
 exportVariable=processAttachmentId
 

@@ -15,7 +15,7 @@ fi
 source bin/queryEnvironment.sh env=${env} classification="*"
 
 ARGUMENTS=(envId)
-URL=$baseURL/DeployedPackage/query
+URL="${baseURL}DeployedPackage/query"
 JSON_FILE=json/queryDeployedPackageEnv.json
 REPORT_TILE="List of Deployed Packages"
 REPORT_HEADERS=("#" "Component" "Package Version" "Environment" "Component Type" "Deployed Date" "Deployed By" "Notes")
@@ -46,17 +46,17 @@ do
 	while [ "$i" -lt "${#ids[@]}" ]; 
 	do 
 		h=$(( $h + 1 ));
-		URL=$baseURL/Process/${cids[$i]}
+		URL="${baseURL}Process/${cids[$i]}"
 		name=`curl -s -X GET -u $authToken -H "${h1}" -H "${h2}" $URL | jq -r .name`
 		
-		URL=$baseURL/Environment/${eids[$i]}
+		URL="${baseURL}Environment/${eids[$i]}"
 		env=`curl -s -X GET -u $authToken -H "${h1}" -H "${h2}" $URL | jq -r .name`
 
     printReportRow  "${h}" "${name}" "${pvs[$i]}" "${env}" "${ctypes[$i]}" "${ddates[$i]}" "${dbys[$i]}" "${notes[$i]}"	
 		i=$(( $i + 1 )); 
 	done
 	extract queryToken queryToken 
-	URL=$baseURL/Process/queryMore
+	URL="${baseURL}Process/queryMore"
 done
 
 printReportTail

@@ -4,7 +4,7 @@ source bin/common.sh
 # mandatory arguments
 ARGUMENTS=(processId envId componentType notes)
 JSON_FILE=json/deployProcess.json
-URL=$baseURL/Deployment
+URL="${baseURL}Deployment"
 id=id
 exportVariable=deploymentId
 

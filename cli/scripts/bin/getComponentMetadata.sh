@@ -20,7 +20,7 @@ else
 	version=""
 fi
 
-export URL=$baseURL/ComponentMetadata/${componentId}${version}
+export URL="${baseURL}ComponentMetadata/${componentId}${version}"
 
 getAPI
 

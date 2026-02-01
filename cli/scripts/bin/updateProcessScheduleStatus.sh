@@ -30,7 +30,7 @@ status="${enabled}"
 
 ARGUMENTS=(atomId processId scheduleId status)
 JSON_FILE=json/updateProcessScheduleStatus.json
-URL=$baseURL/ProcessScheduleStatus/$scheduleId/update
+URL="${baseURL}ProcessScheduleStatus/$scheduleId/update"
  
 createJSON
 

@@ -13,7 +13,7 @@ then
         return 255;
 fi
 
-URL=$baseURL/Atom/$atomId/update
+URL="${baseURL}Atom/$atomId/update"
 createJSON
  
 callAPI

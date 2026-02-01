@@ -3,7 +3,7 @@
 source bin/common.sh
 # get atom id of the by atom name
 # mandatory arguments
-URL=$baseURL/Environment/query
+URL="${baseURL}Environment/query"
 JSON_FILE=json/queryAny.json
 createJSON
 callAPI

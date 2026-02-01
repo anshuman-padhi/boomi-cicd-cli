@@ -13,7 +13,7 @@ fi
 # mandatory arguments
 ARGUMENTS=(env classification)
 JSON_FILE=json/createEnvironment.json
-URL=$baseURL/Environment
+URL="${baseURL}Environment"
 id=id
 exportVariable=envId
 

@@ -4,7 +4,7 @@ source bin/common.sh
 # mandatory arguments
 ARGUMENTS=(envId packageId)
 JSON_FILE=json/queryDeployedPackage.json
-URL=$baseURL/DeployedPackage/query
+URL="${baseURL}DeployedPackage/query"
 id=result[0].deploymentId
 exportVariable=deploymentId
 

@@ -4,7 +4,7 @@ source bin/common.sh
 # mandatory arguments
 ARGUMENTS=(atomId)
 OPT_ARGUMENTS=(envId)
-URL=$baseURL/EnvironmentAtomAttachment/query
+URL="${baseURL}EnvironmentAtomAttachment/query"
 id=result[0].id
 exportVariable=atomAttachmentId
 

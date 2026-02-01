@@ -13,7 +13,7 @@ then
         return 255;
 fi
 
-URL=$baseURL/PackagedComponent/query
+URL="${baseURL}PackagedComponent/query"
 JSON_FILE=json/queryPackagedComponentVersion.json
 REPORT_TITLE="List of Packaged Components"
 REPORT_HEADERS=("#" "Component" "Package Version" "Component Type" "Created Date" "Created By" "Notes")
@@ -42,14 +42,14 @@ do
 	while [ "$i" -lt "${#ids[@]}" ]; 
 	do 
 		h=$(( $h + 1 ));
-		URL=$baseURL/Process/${cids[$i]}
+		URL="${baseURL}Process/${cids[$i]}"
 		name=`curl -s -X GET -u $authToken -H "${h1}" -H "${h2}" $URL | jq -r .name`
 		
     printReportRow  "${h}" "${name}" "${pvs[$i]}" "${ctypes[$i]}" "${cdates[$i]}" "${cbys[$i]}" "${notes[$i]}"	
 		i=$(( $i + 1 )); 
 	done
   extract queryToken queryToken 	
-	URL=$baseURL/Process/queryMore
+	URL="${baseURL}Process/queryMore"
 done
 
 printReportTail

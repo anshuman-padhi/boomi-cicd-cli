@@ -5,7 +5,7 @@ source bin/common.sh
 # mandatory arguments
 ARGUMENTS=(processId envId current version)
 JSON_FILE=json/queryDeployment.json
-URL=$baseURL/Deployment/query
+URL="${baseURL}Deployment/query"
 id=result[0].id
 exportVariable=deploymentId
 

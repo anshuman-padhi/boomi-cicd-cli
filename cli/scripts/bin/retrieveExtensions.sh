@@ -28,7 +28,7 @@ echov "The env id is ${envId}"
 
 JSON_FILE="${WORKSPACE}"/envId.json
 
-URL=$baseURL/EnvironmentExtensions/${envId}
+URL="${baseURL}EnvironmentExtensions/${envId}"
 
 getAPI
 

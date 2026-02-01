@@ -5,7 +5,7 @@ source bin/common.sh
 ARGUMENTS=(atomType)
 OPT_ARGUMENTS=(cloudId)
 JSON_FILE=json/installerToken.json
-URL=$baseURL/InstallerToken
+URL="${baseURL}InstallerToken"
 id=token
 exportVariable=tokenId
 

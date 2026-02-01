@@ -17,7 +17,7 @@ source bin/queryAtom.sh atomName="$atomName" atomStatus=online atomType=$atomTyp
 
 ARGUMENTS=(atomId action)
 JSON_FILE=json/changeAllListenersStatus.json
-URL=$baseURL/changeListenerStatus
+URL="${baseURL}changeListenerStatus"
 
 createJSON
 

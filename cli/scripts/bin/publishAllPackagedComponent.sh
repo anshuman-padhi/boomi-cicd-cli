@@ -13,7 +13,7 @@ then
         return 255;
 fi
 
-URL=$baseURL/PackagedComponentManifest
+URL="${baseURL}PackagedComponentManifest"
 REPORT_TITLE="Packaged Components Manifest"
 Environment Type	Environment Name	Component Name	Path	Sub Type	Component ID	Package ID	Environment ID	Counted?
 
@@ -29,7 +29,7 @@ unset componentVersions
 for packageId in `echo "${packageIds}"`
 do
 	packageId=`echo $packageId | xargs`
-	URL=$baseURL/PackagedComponentManifest/${packageId}
+	URL="${baseURL}PackagedComponentManifest/${packageId}"
   getAPI	
   
   if [ "$ERROR" -gt "0" ]

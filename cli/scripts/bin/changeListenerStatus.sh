@@ -23,7 +23,7 @@ listenerId=$componentId
 
 ARGUMENTS=(atomId listenerId action)
 JSON_FILE=json/changeListenerStatus.json
-URL=$baseURL/changeListenerStatus
+URL="${baseURL}changeListenerStatus"
 
 createJSON
 

@@ -20,7 +20,7 @@ fi
 
 ARGUMENTS=(atomName cloudId)
 JSON_FILE=json/createAtom.json
-URL=$baseURL/Atom
+URL="${baseURL}Atom"
 id=id
 exportVariable=atomId
 export atomName=${saveAtomName}

@@ -21,7 +21,7 @@ fi
 # mandatory arguments
 ARGUMENTS=(atomId overrideUrl apiType auth url)
 JSON_FILE=json/updateSharedServer.json
-URL=$baseURL/SharedServerInformation/$atomId/update
+URL="${baseURL}SharedServerInformation/$atomId/update"
 
 printArgs
 

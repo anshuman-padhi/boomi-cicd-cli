@@ -35,7 +35,7 @@ saveScheduleId=scheduleId
 
 ARGUMENTS=(atomId processId scheduleId years months daysOfMonth daysOfWeek hours minutes)
 JSON_FILE=json/updateProcessSchedules.json
-URL=$baseURL/ProcessSchedules/$scheduleId/update
+URL="${baseURL}ProcessSchedules/$scheduleId/update"
  
 createJSON
 unset exportVariable
