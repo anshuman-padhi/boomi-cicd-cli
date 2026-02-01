@@ -6,11 +6,9 @@ source bin/common.sh
 # mandatory arguments
 ARGUMENTS=(atomName cloudId)
 inputs "$@"
+handle_error "$?" "Failed to process input arguments" || return 1
 
-if [ "$?" -gt "0" ]
-then
-   return 255;
-fi
+log_info "Creating atom: ${atomName}"
  
 saveAtomName="${atomName}"
 source bin/queryAtom.sh atomName="${atomName}" atomType="*" atomStatus="*"
@@ -36,7 +34,6 @@ then
 fi
 
 clean
-if [ "$ERROR" -gt "0" ]
-then
-   return 255;
-fi
+handle_error "$ERROR" "Failed to create atom: ${atomName}" || return 1
+
+log_info "Successfully created atom: ${atomName} (ID: ${atomId})"

@@ -9,10 +9,9 @@ id=result[0].id
 exportVariable=processId
 
 inputs "$@"
-if [ "$?" -gt "0" ]
-then
-        return 255;
-fi
+handle_error "$?" "Failed to process input arguments" || return 1
+
+log_info "Querying process: ${processName}"
 
 createJSON
 
@@ -21,7 +20,11 @@ callAPI
 extract $id componentId
 
 clean
-if [ "$ERROR" -gt "0" ]
-then
-   return 255;
+handle_error "$ERROR" "Failed to query process: ${processName}" || return 1
+
+if [ -z "${componentId}" ] || [ "${componentId}" == "null" ]; then
+    log_error "Process not found: ${processName}"
+    return 1
 fi
+
+log_info "Found process: ${processName} (ID: ${componentId})"

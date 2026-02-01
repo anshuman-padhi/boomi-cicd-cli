@@ -6,11 +6,7 @@ unset _saveComponentId _saveComponentType _saveComponentName _saveComponentVersi
 OPT_ARGUMENTS=(componentType componentName componentId deleted currentVersion componentVersion)
 ARGUMENTS=()
 inputs "$@"
-
-if [ "$?" -gt "0" ]
-then
-   return 255;
-fi
+handle_error "$?" "Failed to process input arguments" || return 1
 
 if [ -z "${componentId}" ] && [ -z "${componentName}" ]
 then

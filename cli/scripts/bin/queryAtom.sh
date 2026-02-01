@@ -10,11 +10,9 @@ id=result[0].id
 exportVariable=atomId
 
 inputs "$@"
+handle_error "$?" "Failed to process input arguments" || return 1
 
-if [ "$?" -gt "0" ]
-then
-        return 255;
-fi
+log_info "Querying atom: ${atomName} (type: ${atomType}, status: ${atomStatus})"
 
 if [ "$atomType" = "*" ] || [ "$atomStatus" = "*" ]
 then
@@ -25,7 +23,11 @@ createJSON
 callAPI
  
 clean
-if [ "$ERROR" -gt "0" ]
-then
-   return 255;
+handle_error "$ERROR" "Failed to query atom: ${atomName}" || return 1
+
+if [ -z "${atomId}" ] || [ "${atomId}" == "null" ]; then
+    log_error "Atom not found: ${atomName}"
+    return 1
 fi
+
+log_info "Found atom: ${atomName} (ID: ${atomId})"
