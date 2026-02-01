@@ -15,10 +15,9 @@ URL="${baseURL}DeployedPackage"
 id=deploymentId
 exportVariable=deploymentId
 inputs "$@"
-if [ "$?" -gt "0" ]
-then
-        return 255;
-fi
+handle_error "$?" "Failed to process input arguments" || return 1
+
+log_info "Deploying package ${packageId} to environment ${envId}"
 createJSON
  
 if [ "$deploymentId" == "null" ] || [ -z "$deploymentId" ]
@@ -31,7 +30,6 @@ else
 fi
 
 clean
-if [ "$ERROR" -gt "0" ]
-then
-   return 255;
-fi
+handle_error "$ERROR" "Failed to deploy package ${packageId}" || return 1
+
+log_info "Successfully deployed package: ${packageId}"

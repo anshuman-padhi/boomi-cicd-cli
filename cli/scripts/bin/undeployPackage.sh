@@ -13,10 +13,9 @@ version=""
 processId=$componentId
 
 inputs "$@"
-if [ "$?" -gt "0" ]
-then
-    return 255;
-fi
+handle_error "$?" "Failed to process input arguments" || return 1
+
+log_info "Undeploying component ${componentId} from environment ${envId}"
 
 # 1. Query existing deployment
 createJSON
@@ -24,7 +23,7 @@ callAPI
 
 if [ ! -z "$deploymentId" ] && [ "$deploymentId" != "null" ]
 then
-  echov "Found deploymentId: $deploymentId"
+  log_info "Found deployment ${deploymentId}, undeploying..."
   
   # 2. Delete deployment (Undeploy)
   URL=${baseURL}DeployedPackage/$deploymentId
@@ -40,14 +39,14 @@ then
   export ERROR=`jq -r . "${WORKSPACE}"/out_delete.json | grep '"@type": "Error"' | wc -l`
   if [[ $ERROR -gt 0 ]]; then 
 	   export ERROR_MESSAGE=`jq -r .message "${WORKSPACE}"/out_delete.json` 
-		 echo "Error undeploying: $ERROR_MESSAGE" 
+		 log_error "Undeployment failed: $ERROR_MESSAGE"
 	   return 251
   else
-     echo "Successfully undeployed component $componentId from env $envId"
+     log_info "Successfully undeployed component ${componentId}"
   fi
 
 else
-  echo "No active deployment found for component $componentId in env $envId - nothing to undeploy."
+  log_warn "No active deployment found for component ${componentId} - nothing to undeploy"
 fi
 
 clean

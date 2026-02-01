@@ -7,10 +7,9 @@ ARGUMENTS=(atomName atomType)
 OPT_ARGUMENTS=(componentId processName processProperties)
 
 inputs "$@"
-if [ "$?" -gt "0" ]
-then
-        return 255;
-fi
+handle_error "$?" "Failed to process input arguments" || return 1
+
+log_info "Executing process on atom: ${atomName} (${atomType})"
 
 source bin/queryAtom.sh atomName="$atomName" atomStatus=online atomType=$atomType
 
@@ -32,10 +31,9 @@ URL="${baseURL}executeProcess"
 export ALLOW_EMPTY_RESPONSE=true 
 createJSON
 
+log_info "Executing process ${processId} on atom ${atomId}"
 callAPI
+handle_error "$ERROR" "Failed to execute process ${processId}" || return 1
 
 clean
-if [ "$ERROR" -gt "0" ]
-then
-   return 255;
-fi
+log_info "Successfully triggered process execution"

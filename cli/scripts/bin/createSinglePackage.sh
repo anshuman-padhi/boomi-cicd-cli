@@ -5,10 +5,7 @@ source bin/common.sh
 ARGUMENTS=(packageVersion notes) 
 OPT_ARGUMENTS=(componentId processName extractComponentXmlFolder componentVersion componentType branchName)
 inputs "$@"
-if [ "$?" -gt "0" ]
-then
-    return 255;
-fi
+handle_error "$?" "Failed to process input arguments" || return 1
 folder="${WORKSPACE}/${extractComponentXmlFolder}"
 saveNotes="${notes}"
 savePackageVersion="${packageVersion}"
@@ -86,7 +83,4 @@ unset folder packageFolder
 export packageId=${savePackageId}
 
 
-if [ "$ERROR" -gt 0 ]
-then
-   return 255;
-fi
+handle_error "$ERROR" "Package creation failed for component" || return 1
