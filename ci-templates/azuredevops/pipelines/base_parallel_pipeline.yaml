@@ -250,6 +250,10 @@ stages:
           - job: call_secretmanager
             displayName: "Retrieve Secrets"
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - ${{if parameters.postmanCollection}}:
                   - template: call_secretmanager.yaml
                     parameters:
@@ -273,6 +277,10 @@ stages:
             displayName: "Run API Tests"
             dependsOn: call_secretmanager
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - ${{if parameters.postmanCollection}}:
                   - template: call_api.yaml
                     parameters:
@@ -291,6 +299,10 @@ stages:
             dependsOn: call_api
             condition: always()
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - template: clean_up.yaml
                 parameters:
                   h1: $(h1)
@@ -332,6 +344,10 @@ stages:
           - job: deploy_package
             displayName: "Deploy to UAT"
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - template: deploy_packages_multi.yaml
                 parameters:
                   h1: $(h1)
@@ -422,6 +438,10 @@ stages:
           - job: deploy_package
             displayName: "Deploy to Production"
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - template: deploy_packages_multi.yaml
                 parameters:
                   h1: $(h1)
@@ -443,6 +463,10 @@ stages:
             dependsOn: deploy_package
             condition: always()
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - template: clean_up.yaml
                 parameters:
                   h1: $(h1)
@@ -469,6 +493,10 @@ stages:
           - job: undeploy_qa_packages
             displayName: "Undeploy All QA Packages"
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - template: undeploy_packages.yaml
                 parameters:
                   h1: $(h1)
@@ -492,6 +520,10 @@ stages:
           - job: undeploy_uat_packages
             displayName: "Undeploy All UAT Packages"
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - template: undeploy_packages.yaml
                 parameters:
                   h1: $(h1)
