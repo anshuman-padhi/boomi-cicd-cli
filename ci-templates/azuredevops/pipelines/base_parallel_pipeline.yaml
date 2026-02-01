@@ -136,6 +136,10 @@ stages:
           - job: deploy_package
             displayName: "Deploy to QA"
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - template: deploy_packages_multi.yaml
                 parameters:
                   h1: $(h1)
@@ -185,6 +189,10 @@ stages:
           - job: execute_processes
             displayName: "Execute Unit Tests"
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - ${{if parameters.test_componentIds}}:
                   - template: execute_processes.yaml
                     parameters:
@@ -203,6 +211,10 @@ stages:
             displayName: "Validate Test Results"
             dependsOn: execute_processes
             steps:
+              - checkout: self
+              - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+                  - checkout: ${{ parameters.scriptsRepo }}
+                    path: ${{ parameters.scriptsRepo }}
               - ${{if parameters.test_componentIds}}:
                   - script: |
                       export sleepSeconds=$(( ${{ parameters.sleepInMinutes }} * 60 ))
