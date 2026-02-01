@@ -46,7 +46,7 @@ for componentId in "${componentIdArray[@]}"; do
     if [ -z "${saveComponentType}" ]; then
          echo "DEBUG: Component Type not provided. Querying metadata..."
          # Save componentId because queryComponentMetadata.sh might overwrite it with null if not found
-         local _loopComponentId="${componentId}"
+         _loopComponentId="${componentId}"
          source bin/queryComponentMetadata.sh componentId="${componentId}"
          componentId="${_loopComponentId}"
          
