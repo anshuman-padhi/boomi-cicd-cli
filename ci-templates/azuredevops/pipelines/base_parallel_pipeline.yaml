@@ -63,12 +63,19 @@ parameters:
     type: string
     default: ""
     displayName: "Boomi Branch Name (for branch/merge feature)"
+  - name: scriptsRepo
+    type: string
+    default: "self"
+    displayName: "Repository Resource Name containing scripts (default: self)"
 
 variables:
   - group: boomicicd
   - group: boomiruntime
   - name: SCRIPTS_HOME
-    value: $(Build.SourcesDirectory)/cli/scripts
+    ${{ if eq(parameters.scriptsRepo, 'self') }}:
+      value: $(Build.SourcesDirectory)/cli/scripts
+    ${{ if ne(parameters.scriptsRepo, 'self') }}:
+      value: $(Agent.BuildDirectory)/${{ parameters.scriptsRepo }}/cli/scripts
   - name: WORKSPACE
     value: $(Build.SourcesDirectory)/workspace
   - name: h1
@@ -95,6 +102,9 @@ stages:
       - job: create_package
         displayName: "Create Boomi Package"
         steps:
+          - checkout: self
+          - ${{ if ne(parameters.scriptsRepo, 'self') }}:
+              - checkout: ${{ parameters.scriptsRepo }}
           - template: create_packages.yaml
             parameters:
               h1: $(h1)
