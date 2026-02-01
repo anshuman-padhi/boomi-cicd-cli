@@ -10,7 +10,7 @@ extends:
   template: /ci-templates/azuredevops/pipelines/base_parallel_pipeline.yaml
   parameters:
     packageName: "BoomiParallelPackage"
-    packageVersion: "$(Build.DefinitionName)-$(Build.BuildNumber)"
+    packageVersion: "BoomiParallelPackage-$(Build.BuildNumber)"
     notes: "Parallel Pipeline Demo"
 
     # Environment Toggles

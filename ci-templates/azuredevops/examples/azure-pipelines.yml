@@ -22,7 +22,7 @@ extends:
   template: /ci-templates/azuredevops/pipelines/base_build_approval_deploy.yaml
   parameters:
     packageName: "BoomiPackage"
-    packageVersion: "$(Build.DefinitionName)-$(Build.BuildNumber)"
+    packageVersion: "BoomiPackage-$(Build.BuildNumber)"
     notes: "Custom Pipeline Deployment"
     deployToQA: true
     deployToUAT: true
