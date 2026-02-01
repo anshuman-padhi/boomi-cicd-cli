@@ -1,0 +1,31 @@
+trigger: none
+
+pool:
+  name: "Default" # User specified local agent
+
+# Default variables are inherited from the base template if not overridden here.
+# But "extends" doesn't inherit variables block directly, so we usually define project-specific ones here if needed.
+
+extends:
+  template: /ci-templates/azuredevops/pipelines/base_parallel_pipeline.yaml
+  parameters:
+    packageName: "BoomiParallelPackage"
+    packageVersion: "$(Build.BuildNumber)"
+    notes: "Parallel Pipeline Demo"
+
+    # Environment Toggles
+    deployToQA: true
+    deployToUAT: true
+    deployToProd: true
+
+    # NEW: Cleanup Toggles
+    undeployQA: false
+    undeployUAT: false # Set to true to cleanup UAT after Prod deploy
+
+    # Comma-separated component IDs to deploy
+    componentIds: "dd185596-c539-4d31-97c5-1a46f13eafa4,8d4bd7c8-1071-4ba9-a697-8e5e21a6e229"
+
+    # Comma-separated test component IDs
+    test_componentIds: "590ed42b-a6b5-4c73-a8f8-5dc2451514b7"
+
+    branchName: "main"

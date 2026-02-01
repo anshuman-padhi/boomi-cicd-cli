@@ -1,0 +1,471 @@
+##################################################################
+# Base Pipeline Template: Parallel QA & Selectable Undeploy      #
+##################################################################
+#
+# This template implements a specific workflow:
+# 1. Build Package (Once)
+# 2. Deploy to QA
+# 3. Parallel QA Testing (Unit Tests + API Tests)
+# 4. UAT Deployment (with Approval)
+# 5. UAT Manual Validation (Explicit Manual Gate)
+# 6. Production Deployment (with Approval)
+# 7. Parallel & Selectable Undeploy (QA & UAT)
+#
+# Usage: See examples/parallel-pipeline-demo.yaml
+#
+
+parameters:
+  - name: packageVersion
+    type: string
+    displayName: "Package Version (0 for auto-generated)"
+  - name: componentIds
+    type: string
+    displayName: "Component IDs to package"
+  - name: packageName
+    type: string
+    displayName: "Package Name"
+  - name: test_componentIds
+    type: string
+    default: ""
+    displayName: "Test Component IDs (optional)"
+  - name: notes
+    type: string
+    displayName: "Deployment Notes"
+  - name: postmanCollection
+    type: string
+    default: ""
+    displayName: "Postman Collection for API Testing (optional)"
+  - name: sleepInMinutes
+    type: number
+    default: 0
+    displayName: "Sleep time after test execution (minutes)"
+  - name: deployToQA
+    type: boolean
+    default: true
+    displayName: "Deploy to QA Environment"
+  - name: deployToUAT
+    type: boolean
+    default: true
+    displayName: "Deploy to UAT Environment"
+  - name: deployToProd
+    type: boolean
+    default: true
+    displayName: "Deploy to Production Environment"
+  - name: undeployQA
+    type: boolean
+    default: false
+    displayName: "Undeploy from QA (Cleanup)"
+  - name: undeployUAT
+    type: boolean
+    default: false
+    displayName: "Undeploy from UAT (Cleanup)"
+  - name: branchName
+    type: string
+    default: ""
+    displayName: "Boomi Branch Name (for branch/merge feature)"
+
+variables:
+  - group: boomicicd
+  - group: boomiruntime
+  - name: SCRIPTS_HOME
+    value: $(Build.SourcesDirectory)/cli/scripts
+  - name: WORKSPACE
+    value: $(Build.SourcesDirectory)/workspace
+  - name: h1
+    value: "Content-Type: application/json"
+  - name: h2
+    value: "Accept: application/json"
+  - name: VERBOSE
+    value: "true"
+  - name: SLEEP_TIMER
+    value: "0.2"
+  - name: packageVersion
+    ${{ if eq(parameters.packageVersion, '0') }}:
+      value: ${{ parameters.packageName }}.$(Build.BuildNumber).BUILD
+    ${{ if ne(parameters.packageVersion, '0') }}:
+      value: ${{ parameters.packageVersion }}
+
+stages:
+  ###########################
+  #  Stage 1: Build Package #
+  ###########################
+  - stage: Build_Package
+    displayName: "📦 Build Package (Once)"
+    jobs:
+      - job: create_package
+        displayName: "Create Boomi Package"
+        steps:
+          - template: create_packages.yaml
+            parameters:
+              h1: $(h1)
+              h2: $(h2)
+              baseURL: $(baseURL)
+              authToken: $(authToken)
+              VERBOSE: $(VERBOSE)
+              SLEEP_TIMER: $(SLEEP_TIMER)
+              WORKSPACE: $(WORKSPACE)
+              SCRIPTS_HOME: $(SCRIPTS_HOME)
+              componentIds: "${{ parameters.componentIds }},${{ parameters.test_componentIds }}"
+              packageVersion: $(packageVersion)
+              notes: ${{ parameters.notes }}
+              branchName: ${{ parameters.branchName }}
+
+  ###########################
+  #  Stage 2: QA Deployment #
+  ###########################
+  - ${{ if eq(parameters['deployToQA'], 'true') }}:
+      - stage: QA_Deployment
+        displayName: "🔧 QA Deployment"
+        dependsOn: Build_Package
+        jobs:
+          - job: deploy_package
+            displayName: "Deploy to QA"
+            steps:
+              - template: deploy_packages_multi.yaml
+                parameters:
+                  h1: $(h1)
+                  h2: $(h2)
+                  baseURL: $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  packageVersion: $(packageVersion)
+                  componentIds: ${{ parameters.componentIds }}
+                  env: $(development_apim_envname)
+                  notes: "QA - ${{ parameters.notes }}"
+                  listenerStatus: "RUNNING"
+                  branchName: ${{ parameters.branchName }}
+
+          - job: deploy_test_packages
+            displayName: "Deploy Test Components to QA"
+            dependsOn: deploy_package
+            steps:
+              - ${{if parameters.test_componentIds}}:
+                  - template: deploy_packages_multi.yaml
+                    parameters:
+                      h1: $(h1)
+                      h2: $(h2)
+                      baseURL: $(baseURL)
+                      authToken: $(authToken)
+                      VERBOSE: $(VERBOSE)
+                      SLEEP_TIMER: $(SLEEP_TIMER)
+                      WORKSPACE: $(WORKSPACE)
+                      SCRIPTS_HOME: $(SCRIPTS_HOME)
+                      componentIds: ${{ parameters.test_componentIds }}
+                      env: $(development_apim_envname)
+                      notes: "QA Test Components - ${{ parameters.notes }}"
+                      packageVersion: $(packageVersion)
+                      branchName: ${{ parameters.branchName }}
+
+      #########################################
+      #  Stage 3: QA Unit Testing             #
+      #  (Runs in Parallel with API Testing)  #
+      #########################################
+      - stage: QA_Unit_Testing
+        displayName: "✅ QA Unit Testing"
+        dependsOn: QA_Deployment
+        jobs:
+          - job: execute_processes
+            displayName: "Execute Unit Tests"
+            steps:
+              - ${{if parameters.test_componentIds}}:
+                  - template: execute_processes.yaml
+                    parameters:
+                      h1: $(h1)
+                      h2: $(h2)
+                      baseURL: $(baseURL)
+                      authToken: $(authToken)
+                      VERBOSE: $(VERBOSE)
+                      SLEEP_TIMER: $(SLEEP_TIMER)
+                      WORKSPACE: $(WORKSPACE)
+                      SCRIPTS_HOME: $(SCRIPTS_HOME)
+                      atomName: $(development_apim_atom)
+                      componentIds: ${{ parameters.test_componentIds }}
+
+          - job: validate_processes
+            displayName: "Validate Test Results"
+            dependsOn: execute_processes
+            steps:
+              - ${{if parameters.test_componentIds}}:
+                  - script: |
+                      export sleepSeconds=$(( ${{ parameters.sleepInMinutes }} * 60 ))
+                      echo "Sleeping for ${sleepSeconds} seconds ..."
+                      sleep ${sleepSeconds}
+                      echo "Sleeping done"
+                    displayName: "Wait for test completion"
+                  - template: validate_processes.yaml
+                    parameters:
+                      h1: $(h1)
+                      h2: $(h2)
+                      baseURL: $(baseURL)
+                      authToken: $(authToken)
+                      VERBOSE: $(VERBOSE)
+                      SLEEP_TIMER: $(SLEEP_TIMER)
+                      WORKSPACE: $(WORKSPACE)
+                      SCRIPTS_HOME: $(SCRIPTS_HOME)
+                      atomName: $(development_apim_atom)
+                      componentIds: ${{ parameters.test_componentIds }}
+
+      #########################################
+      #  Stage 4: QA API Testing              #
+      #  (Runs in Parallel with Unit Testing) #
+      #########################################
+      - stage: QA_API_Testing
+        displayName: "🔌 QA API Testing"
+        dependsOn: QA_Deployment
+        jobs:
+          - job: call_secretmanager
+            displayName: "Retrieve Secrets"
+            steps:
+              - ${{if parameters.postmanCollection}}:
+                  - template: call_secretmanager.yaml
+                    parameters:
+                      h1: $(h1)
+                      h2: $(h2)
+                      baseURL: $(baseURL)
+                      authToken: $(authToken)
+                      VERBOSE: $(VERBOSE)
+                      SLEEP_TIMER: $(SLEEP_TIMER)
+                      WORKSPACE: $(WORKSPACE)
+                      SCRIPTS_HOME: $(SCRIPTS_HOME)
+                      env: $(development_apim_envname)
+                      secretMode: "postman"
+                      secretName: $(azureKeyvault)
+                      awsRegion: $(awsRegion)
+                      awsAccessKeyId: $(awsAccessKeyId)
+                      awsSecretKey: $(awsSecretKey)
+                      BOOMI_LIBRARIES: $(BOOMI_LIBRARIES)
+
+          - job: call_api
+            displayName: "Run API Tests"
+            dependsOn: call_secretmanager
+            steps:
+              - ${{if parameters.postmanCollection}}:
+                  - template: call_api.yaml
+                    parameters:
+                      h1: $(h1)
+                      h2: $(h2)
+                      baseURL: $(baseURL)
+                      authToken: $(authToken)
+                      VERBOSE: $(VERBOSE)
+                      SLEEP_TIMER: $(SLEEP_TIMER)
+                      WORKSPACE: $(WORKSPACE)
+                      SCRIPTS_HOME: $(SCRIPTS_HOME)
+                      postmanCollection: ${{ parameters.postmanCollection }}
+
+          - job: clean_up
+            displayName: "Cleanup Temp Files"
+            dependsOn: call_api
+            condition: always()
+            steps:
+              - template: clean_up.yaml
+                parameters:
+                  h1: $(h1)
+                  h2: $(h2)
+                  baseURL: $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+
+  ###################################
+  #  Stage 5: UAT Deployment        #
+  #  (Pre-Deployment Approval Gate) #
+  ###################################
+  - ${{ if eq(parameters['deployToUAT'], 'true') }}:
+      - stage: UAT_Approval
+        displayName: "⏸️  UAT Approval Gate"
+        dependsOn:
+          - QA_Unit_Testing
+          - QA_API_Testing
+        jobs:
+          - deployment: approve_uat
+            displayName: "Approve UAT Deployment"
+            environment: UAT # Requires manual approval in Azure DevOps check
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - script: |
+                        echo "✅ UAT deployment approved"
+                        echo "Package will be deployed to UAT environment"
+                      displayName: "UAT Approval Confirmed"
+
+      - stage: UAT_Deployment
+        displayName: "🔧 UAT Deployment"
+        dependsOn: UAT_Approval
+        jobs:
+          - job: deploy_package
+            displayName: "Deploy to UAT"
+            steps:
+              - template: deploy_packages_multi.yaml
+                parameters:
+                  h1: $(h1)
+                  h2: $(h2)
+                  baseURL: $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  packageVersion: $(packageVersion)
+                  componentIds: ${{ parameters.componentIds }}
+                  env: $(testing_apim_envname)
+                  notes: "UAT - ${{ parameters.notes }}"
+                  branchName: ${{ parameters.branchName }}
+
+          - job: deploy_test_packages
+            displayName: "Deploy Test Components to UAT"
+            dependsOn: deploy_package
+            steps:
+              - ${{if parameters.test_componentIds}}:
+                  - template: deploy_packages_multi.yaml
+                    parameters:
+                      h1: $(h1)
+                      h2: $(h2)
+                      baseURL: $(baseURL)
+                      authToken: $(authToken)
+                      VERBOSE: $(VERBOSE)
+                      SLEEP_TIMER: $(SLEEP_TIMER)
+                      WORKSPACE: $(WORKSPACE)
+                      SCRIPTS_HOME: $(SCRIPTS_HOME)
+                      componentIds: ${{ parameters.test_componentIds }}
+                      env: $(testing_apim_envname)
+                      notes: "UAT Test Components - ${{ parameters.notes }}"
+                      packageVersion: $(packageVersion)
+                      branchName: ${{ parameters.branchName }}
+
+      ###################################################
+      #  Stage 6: UAT Manual Testing Complete Approval  #
+      #  (Explicit Manual Validation Task)              #
+      ###################################################
+      - stage: UAT_Manual_Validation
+        displayName: "🛑 UAT Manual Validation"
+        dependsOn: UAT_Deployment
+        jobs:
+          - job: waitForValidation
+            displayName: "Wait for Manual Validation"
+            pool: server # Runs on server (agentless)
+            timeoutInMinutes: 1440 # Wait up to 24 hours
+            steps:
+              - task: ManualValidation@0
+                timeoutInMinutes: 1440 # Wait up to 24 hours
+                inputs:
+                  notifyUsers: |
+                    [All Users]
+                  instructions: 'Please verify the application in the UAT Environment. Click "Resume" if UAT passed, or "Reject" to stop deployment.'
+                  onTimeout: "reject"
+
+  ###################################
+  #  Stage 7: Production Deployment #
+  #  (Pre-Deployment Approval Gate) #
+  ###################################
+  - ${{ if eq(parameters['deployToProd'], 'true') }}:
+      - stage: Prod_Approval
+        displayName: "⏸️  Production Approval Gate"
+        dependsOn: UAT_Manual_Validation
+        jobs:
+          - deployment: approve_prod
+            displayName: "Approve Production Deployment"
+            environment: Production # Requires manual approval in Azure DevOps check
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - script: |
+                        echo "✅ Production deployment approved"
+                        echo "⚠️  WARNING: This will deploy to PRODUCTION!"
+                      displayName: "Production Approval Confirmed"
+
+      - stage: Prod_Deployment
+        displayName: "🚀 Production Deployment"
+        dependsOn: Prod_Approval
+        jobs:
+          - job: deploy_package
+            displayName: "Deploy to Production"
+            steps:
+              - template: deploy_packages_multi.yaml
+                parameters:
+                  h1: $(h1)
+                  h2: $(h2)
+                  baseURL: $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  packageVersion: $(packageVersion)
+                  componentIds: ${{ parameters.componentIds }}
+                  env: $(production_apim_envname)
+                  notes: "PRODUCTION - ${{ parameters.notes }}"
+                  branchName: ${{ parameters.branchName }}
+
+          - job: clean_up
+            displayName: "Cleanup Temp Files"
+            dependsOn: deploy_package
+            condition: always()
+            steps:
+              - template: clean_up.yaml
+                parameters:
+                  h1: $(h1)
+                  h2: $(h2)
+                  baseURL: $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+
+  #########################################
+  #  Stage 8 & 9: Parallel Undeploy       #
+  #  (Selectable per environment)         #
+  #########################################
+
+  # Stage 8: QA Undeploy
+  - ${{ if eq(parameters.undeployQA, true) }}:
+      - stage: QA_Undeploy
+        displayName: "🧹 QA Undeploy"
+        dependsOn: Prod_Deployment # Runs after Prod is finished (or failed if condition adjusted)
+        condition: succeededOrFailed() # Allows cleanup even if Prod failed, but typically run at end
+        jobs:
+          - job: undeploy_qa_packages
+            displayName: "Undeploy All QA Packages"
+            steps:
+              - template: undeploy_packages.yaml
+                parameters:
+                  h1: $(h1)
+                  h2: $(h2)
+                  baseURL: $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  componentIds: "${{ parameters.componentIds }},${{ parameters.test_componentIds }}"
+                  env: $(development_apim_envname)
+
+  # Stage 9: UAT Undeploy
+  - ${{ if eq(parameters.undeployUAT, true) }}:
+      - stage: UAT_Undeploy
+        displayName: "🧹 UAT Undeploy"
+        dependsOn: Prod_Deployment # Parallel with QA Undeploy
+        condition: succeededOrFailed()
+        jobs:
+          - job: undeploy_uat_packages
+            displayName: "Undeploy All UAT Packages"
+            steps:
+              - template: undeploy_packages.yaml
+                parameters:
+                  h1: $(h1)
+                  h2: $(h2)
+                  baseURL: $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  componentIds: "${{ parameters.componentIds }},${{ parameters.test_componentIds }}"
+                  env: $(testing_apim_envname)
