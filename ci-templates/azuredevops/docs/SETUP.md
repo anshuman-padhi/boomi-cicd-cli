@@ -711,6 +711,23 @@ For production deployments, configure approval gates to ensure controlled releas
 
 > **📖 For detailed approval configuration, see [BUILD_ONCE_PATTERN.md § "Setting Up Approval Gates"](BUILD_ONCE_PATTERN.md#setting-up-approval-gates)**
 
+### Parallel Pipeline Configuration
+For the `base_parallel_pipeline.yaml` template, you need:
+
+1.  **Environments**: Create two Environments in **Pipelines -> Environments**:
+    *   `UAT`
+    *   `Production`
+
+2.  **Approvals**:
+    *   **UAT**: Add an Approval check to the `UAT` environment if you want a gate *before* deployment starts.
+        *   *Note*: The pipeline also includes a "Manual Validation" task *after* UAT deployment, which pauses the pipeline for you to verify the application.
+    *   **Production**: Add an Approval check to the `Production` environment. This is critical to prevent accidental releases.
+
+3.  **Manual Validation Task**:
+    *   The "UAT Manual Validation" stage uses the `ManualValidation@0` task. This runs on the Azure DevOps Server (agentless).
+    *   You do **not** need to configure an environment for this; it works out-of-the-box.
+    *   When the pipeline reaches this stage, it will pause. You must click **Review** and then **Resume** to proceed to Production.
+
 ---
 
 ## Troubleshooting

@@ -27,6 +27,8 @@ extends:
     deployToQA: true
     deployToUAT: true
     deployToProd: true
+    undeployQA: false
+    undeployUAT: false
     # Comma-separated component IDs to deploy
     componentIds: "dd185596-c539-4d31-97c5-1a46f13eafa4,8d4bd7c8-1071-4ba9-a697-8e5e21a6e229,2dcfe4f6-0a27-4ad3-afa8-67a873b1edd1"
     # Comma-separated test component IDs
