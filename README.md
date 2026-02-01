@@ -11,6 +11,7 @@ A **universal, CI/CD-agnostic command-line framework** for automating Boomi depl
 This framework provides:
 - **Universal CLI** - Tool-agnostic bash scripts for Boomi platform operations
 - **Multi-Platform Support** - Pre-built templates for 6+ CI/CD platforms
+- **Parallel Workflows** - Advanced Azure DevOps templates for parallel testing and deployment
 - **Production-Ready** - Battle-tested scripts with error handling, retry logic, and security features
 - **Extensible** - Easy to customize for your deployment workflows
 

@@ -414,6 +414,7 @@ Production-ready templates implementing the build-once-deploy-many pattern:
 | Template | Purpose | Documentation |
 |----------|---------|---------------|
 | `base_build_approval_deploy.yaml` | ✅ **RECOMMENDED** - Complete multi-stage pipeline with approval gates | [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) |
+| `base_parallel_pipeline.yaml` | 🚀 **ADVANCED** - Parallel QA Testing, API Testing, and Selectable Undeploy | [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) |
 | `create_packages.yaml` | Build package once, export packageId | [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) |
 | `deploy_packages_byId.yaml` | Deploy pre-built package by ID | [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) |
 | `undeploy_packages_byId.yaml` | Undeploy package by ID | [BUILD_ONCE_PATTERN.md](BUILD_ONCE_PATTERN.md) |
@@ -507,7 +508,10 @@ pool:
 # 2. Extend the "Build-Once-Deploy-Many" template
 extends:
   template: ci-templates/azuredevops/pipelines/base_build_approval_deploy.yaml@templates
-  parameters:
+    parameters:
+    # 1. CRITICAL: Tell the template where to find the scripts (matches repository name above)
+    scriptsRepo: templates
+
     packageName: 'My-Boomi-Process-Pkg'
     packageVersion: '1.0.$(Build.BuildId)'
     
