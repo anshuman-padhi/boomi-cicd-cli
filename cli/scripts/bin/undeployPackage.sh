@@ -4,7 +4,7 @@ source bin/common.sh
 # mandatory arguments
 ARGUMENTS=(componentId envId)
 JSON_FILE=json/queryDeployment.json
-URL=$baseURL/Deployment/query
+URL=${baseURL}Deployment/query
 id=result[0].id
 exportVariable=deploymentId
 # Set defaults for queryDeployment
@@ -27,7 +27,7 @@ then
   echov "Found deploymentId: $deploymentId"
   
   # 2. Delete deployment (Undeploy)
-  URL=$baseURL/Deployment/$deploymentId
+  URL=${baseURL}Deployment/$deploymentId
   
   if [ ! -z ${SLEEP_TIMER} ]; then sleep ${SLEEP_TIMER}; fi
   
