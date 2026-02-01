@@ -2,7 +2,9 @@
 
 source bin/common.sh 
 # Query processattachment id before creating it
-echov "$@"
+# Query processattachment id before creating it
+echo "$@"
+unset deploymentId
 source bin/queryDeployedPackage.sh "$@"
 
 

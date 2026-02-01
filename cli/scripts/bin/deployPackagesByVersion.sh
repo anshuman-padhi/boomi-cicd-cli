@@ -32,6 +32,7 @@ for componentId in `echo "${componentIds}" | tr ',' ' '`; do
     if [ -z "${componentId}" ]; then
         continue
     fi
+    unset packageId
     echo "Processing Component ID: ${componentId}"
     
     # Query Package ID by Version
