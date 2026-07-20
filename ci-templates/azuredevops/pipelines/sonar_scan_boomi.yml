@@ -26,8 +26,6 @@ variables:
     value: $(Build.SourcesDirectory)/cli/scripts
   - name: WORKSPACE
     value: $(Build.SourcesDirectory)/workspace
-  - name: componentIds
-    value: ${{ parameters.componentIds }}
 
 steps:
   - checkout: self
@@ -46,7 +44,7 @@ steps:
     env:
       authToken: $(authToken)
       baseURL: $(baseURL)
-      componentIds: $(componentIds)
+      componentIds: ${{ parameters.componentIds }}
       sonarHostURL: $(sonarHostURL)
       sonarToken: $(sonarToken)
       sonarProjectKey: $(sonarProjectKey)

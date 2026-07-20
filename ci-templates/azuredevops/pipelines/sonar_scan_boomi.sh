@@ -12,7 +12,9 @@
 # Optional:
 #   sonarProjectKey (default: Boomi)
 # Provided by the pipeline: SCRIPTS_HOME, WORKSPACE
-set -uo pipefail
+# NOTE: no 'set -u' — the sourced CLI scripts (e.g. getComponent.sh) reference
+# unset vars by design; nounset would abort them.
+set -o pipefail
 
 : "${authToken:?authToken is required (ACCOUNT.user:token)}"
 : "${baseURL:?baseURL is required}"
