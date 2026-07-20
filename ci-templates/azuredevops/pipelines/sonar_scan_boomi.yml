@@ -1,0 +1,54 @@
+# Azure DevOps pipeline: export Boomi components (live) and scan with SonarQube.
+#
+# Runs on a self-hosted agent (the arm64 Podman agent) that has jq, curl, xmllint
+# and sonar-scanner, and can reach the SonarQube container on the boomi-ci network.
+#
+# Required variable groups (Pipelines -> Library):
+#   boomicicd        -> authToken (secret), baseURL
+#   boomi-sonar      -> sonarHostURL, sonarToken (secret), sonarProjectKey
+# Set componentIds at queue time (or make it a variable).
+
+trigger: none            # run manually / on demand for the test environment
+
+parameters:
+  - name: componentIds
+    displayName: 'Comma-separated Boomi component IDs to scan'
+    type: string
+    default: ''
+
+pool:
+  name: 'Default'        # must match the self-hosted agent pool (see test-env/README.md)
+
+variables:
+  - group: boomicicd     # authToken (secret), baseURL
+  - group: boomi-sonar   # sonarHostURL, sonarToken (secret), sonarProjectKey
+  - name: SCRIPTS_HOME
+    value: $(Build.SourcesDirectory)/cli/scripts
+  - name: WORKSPACE
+    value: $(Build.SourcesDirectory)/workspace
+  - name: componentIds
+    value: ${{ parameters.componentIds }}
+
+steps:
+  - checkout: self
+
+  - script: |
+      set -e
+      mkdir -p "$(WORKSPACE)"
+      chmod +x "$(SCRIPTS_HOME)"/bin/*.sh
+      chmod +x "$(Build.SourcesDirectory)"/ci-templates/azuredevops/pipelines/*.sh
+      echo "Tooling versions:"; bash --version | head -1; jq --version; xmllint --version 2>&1 | head -1; sonar-scanner --version | tail -1
+    displayName: 'Prepare environment'
+
+  - script: |
+      bash "$(Build.SourcesDirectory)/ci-templates/azuredevops/pipelines/sonar_scan_boomi.sh"
+    displayName: 'Export Boomi components and run SonarQube scan'
+    env:
+      authToken: $(authToken)
+      baseURL: $(baseURL)
+      componentIds: $(componentIds)
+      sonarHostURL: $(sonarHostURL)
+      sonarToken: $(sonarToken)
+      sonarProjectKey: $(sonarProjectKey)
+      SCRIPTS_HOME: $(SCRIPTS_HOME)
+      WORKSPACE: $(WORKSPACE)

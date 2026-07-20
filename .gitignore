@@ -49,6 +49,16 @@ build/
 sonarqube/sonar-scanner/
 sonarqube/*.zip
 
+# test-env: the SonarQube quality profile is source (keep despite the *.xml ignore)
+!test-env/sonarqube/boomi-quality-profile.xml
+
 # Node modules (if using any JS tooling)
 node_modules/
 package-lock.json
+
+# test-env: corporate proxy CAs are machine-specific, do not commit (keep dir via .gitkeep)
+test-env/agent/certs/*.crt
+!test-env/agent/certs/.gitkeep
+
+# test-env: sonar-scanner zip is fetched at build time, not committed
+test-env/agent/sonar-scanner.zip

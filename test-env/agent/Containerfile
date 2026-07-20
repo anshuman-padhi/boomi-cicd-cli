@@ -1,0 +1,57 @@
+# Azure DevOps self-hosted agent for Apple Silicon / arm64, preloaded with the
+# tooling the Boomi CICD CLI + SonarQube scan need.
+#
+# The agent binary itself is downloaded at RUNTIME by start.sh (it asks your org
+# for the package matching the server version — the official Microsoft dockeragent
+# pattern), so no agent version is baked in and it never goes stale.
+#
+# Build:  podman build --arch arm64 -t boomi-azdo-agent test-env/agent
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      jq \
+      git \
+      unzip \
+      bash \
+      libicu70 \
+      libssl3 \
+      openjdk-17-jre-headless \
+      libxml2-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Trust corporate/proxy root CAs (e.g. Zscaler) so in-container HTTPS works behind a
+# TLS-intercepting proxy. Drop your root CA as test-env/agent/certs/*.crt (gitignored);
+# this is a no-op if the dir only contains .gitkeep. Also point Node-based agent tasks
+# at the merged bundle via NODE_EXTRA_CA_CERTS.
+COPY certs/ /usr/local/share/ca-certificates/
+RUN update-ca-certificates
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+
+# sonar-scanner CLI (generic build — uses the system JRE 17 above, so it is arm64-safe;
+# the OS-specific bundles ship an x86_64 JRE that will not run on arm64).
+# The zip is fetched on the HOST by run-agent.sh (reliable behind the corporate
+# proxy) and copied in here, avoiding flaky in-container downloads through Zscaler.
+ARG SONAR_SCANNER_VERSION=5.0.1.3006
+COPY sonar-scanner.zip /tmp/sonar-scanner.zip
+RUN unzip -q /tmp/sonar-scanner.zip -d /opt \
+    && ln -s "/opt/sonar-scanner-${SONAR_SCANNER_VERSION}" /opt/sonar-scanner \
+    && rm /tmp/sonar-scanner.zip
+ENV PATH="/opt/sonar-scanner/bin:${PATH}"
+ENV JAVA_HOME="/usr/lib/jvm/java-17-openjdk-arm64"
+# sonar-scanner 5.x must use the system JRE, not try to provision one
+ENV SONAR_SCANNER_OPTS=""
+
+# The agent refuses to configure as root by default; run it as a dedicated user.
+RUN useradd -m -s /bin/bash agent
+WORKDIR /azp
+RUN chown -R agent:agent /azp
+
+COPY --chown=agent:agent start.sh /azp/start.sh
+RUN chmod +x /azp/start.sh
+
+USER agent
+ENTRYPOINT ["/azp/start.sh"]
