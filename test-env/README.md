@@ -131,9 +131,36 @@ export authToken="ACCOUNT.user:token" baseURL="https://api.boomi.com/api/rest/v1
 source bin/queryProcess.sh processName="Your Process Name"   # prints componentId
 ```
 
-The pipeline runs `sonar_scan_boomi.sh`: exports each component's XML with
-`getComponent.sh`, then runs `sonar-scanner` against `http://boomi-sonarqube:9000`.
-Results appear at **http://localhost:9001/dashboard?id=Boomi**.
+The pipeline runs `sonar_scan_boomi.sh`, which does four things:
+1. **Export** each component's XML with `getComponent.sh`.
+2. **Extract** embedded Groovy/JS (`extract_scripts.sh`) from `<dataprocessscript>` bodies.
+3. **Semgrep SAST** on the extracted scripts (`test-env/semgrep/boomi-scripts.yml`) → SARIF.
+4. **SonarQube** scan: Boomi XPath profile on the XML + JS/secrets rules + Semgrep SARIF import.
+
+Results appear at **http://localhost:9001/dashboard?id=Boomi**, and the extracted scripts +
+`semgrep.sarif` are published as the **`boomi-scan`** pipeline artifact.
+
+## Script security scanning (Groovy / JavaScript) with Semgrep
+
+SonarQube Community does **not** do injection taint analysis (SQLi/XSS/XXE) and has no
+Groovy analyzer, so the embedded scripts are scanned with **Semgrep** instead:
+
+- `ci-templates/azuredevops/pipelines/extract_scripts.sh` — pulls each `<script>` body
+  out of the component XML into `.groovy`/`.js` files (xmllint `string()` decodes the
+  escaped source; extension from the `@language` attribute).
+- `test-env/semgrep/boomi-scripts.yml` — a **local** ruleset (runs offline behind the
+  proxy) covering hardcoded credentials, OS command injection, SQL-injection-by-concat,
+  XXE (unhardened XML parsers), weak crypto, disabled TLS verification, and JS
+  `eval`/`Function`. Groovy uses generic (token) rules; JS uses AST rules.
+- Deeper coverage: add the registry when reachable —
+  `semgrep --config test-env/semgrep/boomi-scripts.yml --config p/security-audit --config p/secrets`.
+- **Gate the build**: set the pipeline's `semgrepFailOn` parameter to `error` or `warning`
+  to fail on findings (default `none` = report only).
+- `test-env/semgrep/samples/vulnerable.{groovy,js}` are deliberately-vulnerable fixtures
+  (10 findings) to validate the ruleset.
+
+> Semgrep runs with `--no-git-ignore` because the extracted scripts live under the
+> git-ignored `workspace/` dir; without it Semgrep would scan "0 files tracked by git".
 
 ---
 
@@ -171,7 +198,10 @@ podman rm -f boomi-azdo-agent                             # stop + unregister th
 | `test-env/podman-compose.yml` | SonarQube + Postgres stack |
 | `test-env/sonarqube/boomi-quality-profile.xml` | The 11 Boomi XPath rules (importable) |
 | `test-env/import-boomi-profile.sh` | Restores the profile + sets default |
-| `test-env/agent/Containerfile` + `start.sh` | arm64 Azure DevOps agent (bash5, jq, xmllint, JRE17, sonar‑scanner) |
+| `test-env/agent/Containerfile` + `start.sh` | arm64 Azure DevOps agent (bash5, jq, xmllint, JRE17, sonar‑scanner, Semgrep) |
 | `test-env/agent/run-agent.sh` | Fetch scanner, build image, register + run agent |
 | `test-env/.env.example` | Agent config template (copy to `.env`) |
-| `ci-templates/azuredevops/pipelines/sonar_scan_boomi.yml` + `.sh` | The scan pipeline |
+| `ci-templates/azuredevops/pipelines/sonar_scan_boomi.yml` + `.sh` | The scan pipeline (export → extract → Semgrep → SonarQube) |
+| `ci-templates/azuredevops/pipelines/extract_scripts.sh` | Extract embedded Groovy/JS from component XML |
+| `test-env/semgrep/boomi-scripts.yml` | Semgrep ruleset for Boomi Groovy/JS (SQLi/XSS/XXE/creds/…) |
+| `test-env/semgrep/samples/vulnerable.{groovy,js}` | Deliberately-vulnerable fixtures for validating the ruleset |

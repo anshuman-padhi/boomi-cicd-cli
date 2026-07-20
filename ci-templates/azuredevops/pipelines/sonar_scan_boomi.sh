@@ -61,8 +61,10 @@ sarif="${SCAN_ROOT}/semgrep.sarif"
 sg_total=0; sg_err=0
 if ls "$SCRIPTS_DIR"/* >/dev/null 2>&1; then
   echo "==> Semgrep scanning $(ls "$SCRIPTS_DIR" | wc -l | tr -d ' ') extracted script(s)..."
+  # --no-git-ignore: the scripts live under the (git-ignored) workspace dir inside the
+  # checked-out repo; without this Semgrep scans "0 files tracked by git".
   ( cd "$SCAN_ROOT" && semgrep scan --config "$SEMGREP_CONFIG" \
-      --metrics off --disable-version-check --sarif --output "$sarif" scripts ) || true
+      --metrics off --disable-version-check --no-git-ignore --sarif --output "$sarif" scripts ) || true
   if [ -f "$sarif" ]; then
     sg_total=$(jq '[.runs[].results[]?] | length' "$sarif" 2>/dev/null || echo 0)
     sg_err=$(jq '[.runs[].results[]? | select(.level=="error")] | length' "$sarif" 2>/dev/null || echo 0)
