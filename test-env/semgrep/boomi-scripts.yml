@@ -1,93 +1,195 @@
 # Semgrep ruleset for scripts extracted from Boomi components (Groovy / JavaScript).
 #
 # Boomi Data Process / Scripting shapes embed Groovy or JS. Groovy is not a
-# first-class Semgrep language, so those rules use `generic` (token/regex) mode —
-# high-signal for the common anti-patterns, not full data-flow taint. JavaScript
-# rules can be AST-aware. Extend with the Semgrep registry when it is reachable:
-#   semgrep --config test-env/semgrep/boomi-scripts.yml --config p/security-audit --config p/secrets
+# first-class Semgrep language, so those rules use `generic` (regex) mode — high
+# signal for the common anti-patterns, not full data-flow taint. JavaScript rules
+# are AST-aware and one uses taint mode (Boomi DDP source -> dangerous sink).
 #
-# Covered: hardcoded credentials, OS command injection, SQL injection (string
-# concat), XXE (unhardened XML parsers), weak crypto, disabled TLS verification,
-# and JS eval/dynamic-code execution.
+# Regexes use \x27 for a single quote so the whole pattern stays inside a
+# single-quoted YAML scalar (no escaping headaches).
+#
+# Severity convention: ERROR = high-confidence / gate-worthy; WARNING = review
+# (broader patterns that can have false positives). Deeper coverage still: add the
+# registry when reachable —
+#   semgrep --config test-env/semgrep/boomi-scripts.yml --config p/security-audit --config p/secrets
 
 rules:
+  # ------------------------------------------------------------------ secrets
   - id: boomi-hardcoded-credential
     languages: [generic]
     severity: ERROR
     message: >
-      Possible hardcoded credential/secret in a Boomi script. Store secrets in
-      environment extensions / a secret manager and mark connection fields extensible.
-    metadata: { cwe: "CWE-798", owasp: "A07:2021" }
-    paths:
-      include: ["*.groovy", "*.js"]
+      Hardcoded credential/secret. Store secrets in environment extensions / a secret
+      manager and mark connection fields extensible; never inline them in a script.
+    metadata: { cwe: "CWE-798", owasp: "A07:2021", confidence: HIGH }
+    paths: { include: ["*.groovy", "*.js"] }
     patterns:
-      - pattern-regex: (?i)\b(password|passwd|pwd|secret|apikey|api_key|access_key|token|private_key)\b\s*[:=]\s*["'][^"']{3,}["']
+      - pattern-regex: '(?i)\b(password|passwd|pwd|secret|apikey|api[_-]?key|access[_-]?key|auth[_-]?token|token|client[_-]?secret|private[_-]?key)\b\s*[:=]\s*["\x27][^"\x27\s]{3,}["\x27]'
 
+  - id: boomi-secret-written-to-logs
+    languages: [generic]
+    severity: WARNING
+    message: "A secret-named value is written to a log/stdout (CWE-532: sensitive data in logs)."
+    metadata: { cwe: "CWE-532", owasp: "A09:2021", confidence: MEDIUM }
+    paths: { include: ["*.groovy", "*.js"] }
+    patterns:
+      - pattern-regex: '(?i)(println|print|System\.out|log(ger)?\.(info|debug|warn|error|trace)|console\.log)\s*\([^)]*(password|passwd|secret|token|api[_-]?key|credential)'
+
+  # ------------------------------------------------------------------ injection
   - id: boomi-os-command-execution
     languages: [generic]
     severity: ERROR
     message: >
-      OS command execution in a Boomi script. If any part of the command is derived
-      from document data/properties this is command injection (CWE-78).
-    metadata: { cwe: "CWE-78", owasp: "A03:2021" }
-    paths:
-      include: ["*.groovy", "*.js"]
+      OS command execution. If any part of the command derives from document data /
+      dynamic process properties this is command injection (CWE-78).
+    metadata: { cwe: "CWE-78", owasp: "A03:2021", confidence: HIGH }
+    paths: { include: ["*.groovy", "*.js"] }
     patterns:
-      - pattern-regex: (Runtime\.getRuntime\(\)\.exec|new\s+ProcessBuilder|\[[^\]]*\]\.execute\(\)|child_process|\.exec\s*\()
+      - pattern-regex: '(Runtime\.getRuntime\(\)\.exec|new\s+ProcessBuilder|\.execute\(\s*\)|require\(\s*["\x27]child_process|child_process|\bexecSync\s*\(|\.exec\s*\()'
+
+  - id: boomi-groovy-dynamic-code-execution
+    languages: [generic]
+    severity: ERROR
+    message: >
+      Dynamic Groovy execution (GroovyShell / Eval / evaluate / GroovyClassLoader).
+      Evaluating strings built from input is code injection (CWE-95).
+    metadata: { cwe: "CWE-95", owasp: "A03:2021", confidence: HIGH }
+    paths: { include: ["*.groovy"] }
+    patterns:
+      - pattern-regex: '(new\s+GroovyShell|\bEval\.(me|x|xy|xyz)\b|new\s+GroovyClassLoader|\.evaluate\s*\(|new\s+GroovyScriptEngine)'
 
   - id: boomi-sql-injection-concat
     languages: [generic]
     severity: ERROR
     message: >
-      SQL statement built by string concatenation. Use parameterized queries
-      (Groovy Sql.rows(query, params)) instead of concatenating document data.
-    metadata: { cwe: "CWE-89", owasp: "A03:2021" }
-    paths:
-      include: ["*.groovy", "*.js"]
+      SQL built by string concatenation. Use parameterized queries
+      (Groovy Sql.rows(query, params)) — never concatenate document data into SQL.
+    metadata: { cwe: "CWE-89", owasp: "A03:2021", confidence: MEDIUM }
+    paths: { include: ["*.groovy", "*.js"] }
     patterns:
-      - pattern-regex: (?i)(select|insert|update|delete)\s+.*["']\s*\+\s*\w
+      - pattern-regex: '(?i)\b(select|insert\s+into|update|delete\s+from|where|values)\b[^;\x27"]*["\x27][^A-Za-z0-9]{0,3}\+\s*\w'
 
-  - id: boomi-xxe-unhardened-xml-parser
-    languages: [generic]
-    severity: ERROR
-    message: >
-      XML parsed without disabling external entities / DOCTYPE (XXE, CWE-611).
-      For XmlSlurper/XmlParser set FEATURE_SECURE_PROCESSING and disallow-doctype-decl;
-      for DocumentBuilderFactory/SAXParserFactory disable external entities.
-    metadata: { cwe: "CWE-611", owasp: "A05:2021" }
-    paths:
-      include: ["*.groovy", "*.js"]
-    patterns:
-      - pattern-regex: (new\s+XmlSlurper\s*\(\s*\)|new\s+XmlParser\s*\(\s*\)|DocumentBuilderFactory\.newInstance|SAXParserFactory\.newInstance|XMLInputFactory\.newInstance)
-
-  - id: boomi-weak-crypto
+  - id: boomi-ldap-injection
     languages: [generic]
     severity: WARNING
-    message: "Weak/broken cryptographic primitive (DES/RC4/MD5/SHA-1). Use AES-GCM / SHA-256+."
-    metadata: { cwe: "CWE-327", owasp: "A02:2021" }
-    paths:
-      include: ["*.groovy", "*.js"]
+    message: "LDAP filter built by concatenation (CWE-90). Encode/validate DN and filter inputs."
+    metadata: { cwe: "CWE-90", owasp: "A03:2021", confidence: MEDIUM }
+    paths: { include: ["*.groovy", "*.js"] }
     patterns:
-      - pattern-regex: (?i)(getInstance\s*\(\s*["'](DES|DESede|RC4|ARCFOUR)["']|MessageDigest\.getInstance\s*\(\s*["'](MD5|SHA-?1)["'])
+      - pattern-regex: '(?i)(InitialDirContext|\.search\s*\([^)]*\+|\((uid|cn|sAMAccountName)=["\x27]?\s*\+)'
 
-  - id: boomi-disabled-tls-verification
+  - id: boomi-xpath-injection
     languages: [generic]
-    severity: ERROR
-    message: "TLS certificate/hostname verification appears disabled (CWE-295)."
-    metadata: { cwe: "CWE-295", owasp: "A07:2021" }
-    paths:
-      include: ["*.groovy", "*.js"]
+    severity: WARNING
+    message: "XPath expression built by concatenation (CWE-643). Use variable binding instead."
+    metadata: { cwe: "CWE-643", owasp: "A03:2021", confidence: LOW }
+    paths: { include: ["*.groovy", "*.js"] }
     patterns:
-      - pattern-regex: (?i)(TrustAllCerts|X509TrustManager|ALLOW_ALL_HOSTNAME_VERIFIER|setHostnameVerifier|checkServerTrusted\s*\([^)]*\)\s*\{\s*\}|rejectUnauthorized\s*[:=]\s*false)
+      - pattern-regex: '(?i)(XPathFactory|newXPath\s*\(\)|XPathExpression|compile\s*\([^)]*\+|selectNodes\s*\([^)]*\+)'
 
   - id: boomi-js-dynamic-code-execution
     languages: [javascript]
     severity: ERROR
     message: "Dynamic code execution (eval / Function). Untrusted input here is code injection / XSS (CWE-95)."
-    metadata: { cwe: "CWE-95", owasp: "A03:2021" }
-    paths:
-      include: ["*.js"]
+    metadata: { cwe: "CWE-95", owasp: "A03:2021", confidence: HIGH }
+    paths: { include: ["*.js"] }
     patterns:
       - pattern-either:
           - pattern: eval(...)
           - pattern: new Function(...)
+
+  - id: boomi-js-ddp-taint-to-sink
+    languages: [javascript]
+    mode: taint
+    severity: ERROR
+    message: >
+      A Boomi dynamic property / document value flows into a code-execution or command
+      sink (eval / Function / exec) without sanitization — confirmed injection data flow.
+    metadata: { cwe: "CWE-95", owasp: "A03:2021", confidence: HIGH }
+    paths: { include: ["*.js"] }
+    pattern-sources:
+      - pattern: dataContext.getStream(...)
+      - patterns:
+          - pattern: $O.getProperty(...)
+    pattern-sinks:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: $X.exec(...)
+
+  # ------------------------------------------------------------------ XXE / parsing
+  - id: boomi-xxe-unhardened-xml-parser
+    languages: [generic]
+    severity: ERROR
+    message: >
+      XML parsed without disabling external entities / DOCTYPE (XXE, CWE-611). Set
+      FEATURE_SECURE_PROCESSING + disallow-doctype-decl (SAX/DOM) or IS_SUPPORTING_
+      EXTERNAL_ENTITIES=false (StAX); for Groovy XmlSlurper/XmlParser disable entities.
+    metadata: { cwe: "CWE-611", owasp: "A05:2021", confidence: MEDIUM }
+    paths: { include: ["*.groovy", "*.js"] }
+    patterns:
+      - pattern-regex: '(new\s+XmlSlurper\s*\(\s*\)|new\s+XmlParser\s*\(\s*\)|DocumentBuilderFactory\.newInstance|SAXParserFactory\.newInstance|XMLInputFactory\.newInstance|new\s+SAXBuilder|TransformerFactory\.newInstance|SchemaFactory\.newInstance|new\s+SAXReader|Unmarshaller)'
+
+  - id: boomi-insecure-deserialization
+    languages: [generic]
+    severity: ERROR
+    message: "Native/unsafe deserialization (CWE-502). Avoid ObjectInputStream/XMLDecoder/SnakeYAML load on untrusted data."
+    metadata: { cwe: "CWE-502", owasp: "A08:2021", confidence: MEDIUM }
+    paths: { include: ["*.groovy", "*.js"] }
+    patterns:
+      - pattern-regex: '(new\s+ObjectInputStream|\.readObject\s*\(|new\s+XMLDecoder|new\s+Yaml\s*\(\s*\)\.load|\bunserialize\s*\()'
+
+  # ------------------------------------------------------------------ SSRF / path
+  - id: boomi-possible-ssrf
+    languages: [generic]
+    severity: WARNING
+    message: "URL/HTTP target may be built from input (SSRF, CWE-918). Validate host against an allow-list."
+    metadata: { cwe: "CWE-918", owasp: "A10:2021", confidence: LOW }
+    paths: { include: ["*.groovy", "*.js"] }
+    patterns:
+      - pattern-regex: '(new\s+URL\s*\([^)]*\+|\.toURL\(\)\.(openConnection|getText|newInputStream)|HttpURLConnection|new\s+URL\s*\(\s*[a-z_])'
+
+  - id: boomi-path-traversal
+    languages: [generic]
+    severity: WARNING
+    message: "File path built from a variable (path traversal, CWE-22). Canonicalize and confine to a base dir."
+    metadata: { cwe: "CWE-22", owasp: "A01:2021", confidence: LOW }
+    paths: { include: ["*.groovy", "*.js"] }
+    patterns:
+      - pattern-regex: '(new\s+File\s*\([^)]*\+|new\s+FileInputStream\s*\([^)]*\+|new\s+FileOutputStream\s*\([^)]*\+|Paths\.get\s*\([^)]*\+)'
+
+  # ------------------------------------------------------------------ crypto
+  - id: boomi-weak-crypto
+    languages: [generic]
+    severity: WARNING
+    message: "Weak/broken crypto (DES/RC4/Blowfish/ECB, MD5/SHA-1). Use AES-GCM and SHA-256+."
+    metadata: { cwe: "CWE-327", owasp: "A02:2021", confidence: MEDIUM }
+    paths: { include: ["*.groovy", "*.js"] }
+    patterns:
+      - pattern-regex: '(?i)(Cipher\.getInstance\s*\(\s*["\x27](DES|DESede|RC4|ARCFOUR|Blowfish)[^"\x27]*["\x27]|getInstance\s*\(\s*["\x27][A-Z]+/ECB/|MessageDigest\.getInstance\s*\(\s*["\x27](MD5|MD2|SHA-?1)["\x27])'
+
+  - id: boomi-hardcoded-crypto-key-or-iv
+    languages: [generic]
+    severity: ERROR
+    message: "Hardcoded cryptographic key or IV (CWE-321/CWE-329). Derive/rotate keys; use a random IV."
+    metadata: { cwe: "CWE-321", owasp: "A02:2021", confidence: MEDIUM }
+    paths: { include: ["*.groovy", "*.js"] }
+    patterns:
+      - pattern-regex: '(new\s+SecretKeySpec\s*\([^)]*["\x27][^"\x27]{2,}["\x27]|new\s+IvParameterSpec\s*\([^)]*["\x27][^"\x27]{2,}["\x27])'
+
+  - id: boomi-insecure-randomness
+    languages: [generic]
+    severity: WARNING
+    message: "Non-cryptographic RNG used for a security value (CWE-330). Use java.security.SecureRandom."
+    metadata: { cwe: "CWE-330", owasp: "A02:2021", confidence: LOW }
+    paths: { include: ["*.groovy", "*.js"] }
+    patterns:
+      - pattern-regex: '(?i)(token|secret|password|passwd|key|nonce|salt|otp|iv|session)\b[^\n]{0,50}(new\s+Random\s*\(|Math\.random\s*\(\)|\.nextInt\s*\(|\.nextBytes\s*\()'
+
+  - id: boomi-disabled-tls-verification
+    languages: [generic]
+    severity: ERROR
+    message: "TLS certificate/hostname verification appears disabled (CWE-295)."
+    metadata: { cwe: "CWE-295", owasp: "A07:2021", confidence: HIGH }
+    paths: { include: ["*.groovy", "*.js"] }
+    patterns:
+      - pattern-regex: '(?i)(TrustAllCerts|implements\s+X509TrustManager|ALLOW_ALL_HOSTNAME_VERIFIER|setHostnameVerifier|checkServerTrusted\s*\([^)]*\)\s*\{\s*\}|rejectUnauthorized\s*[:=]\s*false|NoopHostnameVerifier|verify\s*\([^)]*\)\s*\{\s*return\s+true)'

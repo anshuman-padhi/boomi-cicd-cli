@@ -149,11 +149,17 @@ Groovy analyzer, so the embedded scripts are scanned with **Semgrep** instead:
   out of the component XML into `.groovy`/`.js` files (xmllint `string()` decodes the
   escaped source; extension from the `@language` attribute).
 - `test-env/semgrep/boomi-scripts.yml` — a **local** ruleset (runs offline behind the
-  proxy) covering hardcoded credentials, OS command injection, SQL-injection-by-concat,
-  XXE (unhardened XML parsers), weak crypto, disabled TLS verification, and JS
-  `eval`/`Function`. Groovy uses generic (token) rules; JS uses AST rules.
-- Deeper coverage: add the registry when reachable —
-  `semgrep --config test-env/semgrep/boomi-scripts.yml --config p/security-audit --config p/secrets`.
+  proxy), 17 rules covering: hardcoded credentials, secrets-in-logs, OS command
+  injection, Groovy dynamic-code-execution (`GroovyShell`/`Eval`), SQL-injection-by-
+  concat, LDAP & XPath injection, XXE (many parsers), insecure deserialization, SSRF,
+  path traversal, weak crypto, hardcoded crypto keys/IVs, insecure randomness, disabled
+  TLS verification, and JS `eval`/`Function` — plus a **taint-mode** JS rule tracking
+  Boomi DDP sources into code/command sinks. Groovy uses generic (regex) rules; JS uses
+  AST + taint. Severity: ERROR = gate-worthy, WARNING = review. (Verified: 24 findings on
+  the vulnerable samples, 0 on the clean `TC01-AMR-Prod`.)
+- Deeper coverage still: set the pipeline's **`semgrepExtraConfig`** parameter to layer on
+  registry packs when the registry is reachable, e.g. `p/security-audit p/secrets p/javascript`
+  (equivalent to `semgrep --config test-env/semgrep/boomi-scripts.yml --config p/security-audit …`).
 - **Gate the build**: set the pipeline's `semgrepFailOn` parameter to `error` or `warning`
   to fail on findings (default `none` = report only).
 - `test-env/semgrep/samples/vulnerable.{groovy,js}` are deliberately-vulnerable fixtures
