@@ -68,10 +68,14 @@ echo "Exported ${exported} component(s). Running SonarQube scan..."
 echo "sonarHostURL=${sonarHostURL}  sonarToken length=${#sonarToken}"
 echo "SonarQube auth preflight: $(curl -s -u "${sonarToken}:" "${sonarHostURL}/api/authentication/validate")"
 
+# projectBaseDir must contain sources. The script cd's into SCRIPTS_HOME, so set
+# the base dir explicitly to the export folder and scan it with sources=. — otherwise
+# the scanner indexes 0 files and the project comes up empty.
 sonar-scanner \
   -Dsonar.projectKey="${sonarProjectKey}" \
   -Dsonar.projectName="Boomi Components" \
-  -Dsonar.sources="${SCAN_DIR}" \
+  -Dsonar.projectBaseDir="${SCAN_DIR}" \
+  -Dsonar.sources=. \
   -Dsonar.inclusions="**/*.xml" \
   -Dsonar.scm.disabled=true \
   -Dsonar.host.url="${sonarHostURL}" \
