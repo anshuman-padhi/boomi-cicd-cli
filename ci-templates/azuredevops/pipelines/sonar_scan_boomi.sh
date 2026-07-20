@@ -63,12 +63,24 @@ if [ "$exported" -eq 0 ]; then
 fi
 echo "Exported ${exported} component(s). Running SonarQube scan..."
 
+# Preflight: does the token authenticate? Distinguishes an empty/unmapped secret
+# (length 0) from an invalid token ({"valid":false}). The value is never printed.
+echo "sonarHostURL=${sonarHostURL}  sonarToken length=${#sonarToken}"
+echo "SonarQube auth preflight: $(curl -s -u "${sonarToken}:" "${sonarHostURL}/api/authentication/validate")"
+
 sonar-scanner \
   -Dsonar.projectKey="${sonarProjectKey}" \
   -Dsonar.projectName="Boomi Components" \
   -Dsonar.sources="${SCAN_DIR}" \
   -Dsonar.inclusions="**/*.xml" \
+  -Dsonar.scm.disabled=true \
   -Dsonar.host.url="${sonarHostURL}" \
   -Dsonar.token="${sonarToken}"
+scan_rc=$?
 
+if [ "$scan_rc" -ne 0 ]; then
+  echo "ERROR: sonar-scanner failed (exit ${scan_rc}). If 'Not authorized': regenerate a" >&2
+  echo "       Global Analysis Token in SonarQube and update the 'sonarToken' secret." >&2
+  exit "$scan_rc"
+fi
 echo "Scan submitted. Results: ${sonarHostURL}/dashboard?id=${sonarProjectKey}"
