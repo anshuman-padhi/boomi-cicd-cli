@@ -21,10 +21,11 @@ cleanup() {
 trap 'cleanup; exit 0' EXIT INT TERM
 
 echo "1/3 Resolving agent package for linux-arm64 from ${AZP_URL} ..."
-PACKAGE_URL="$(curl -LsS -u "user:${AZP_TOKEN}" \
-  -H 'Accept:application/json;api-version=6.0-preview.1' \
+# NOTE: do NOT pin api-version here. Some orgs return a stub ({"url":null}) for
+# 'api-version=6.0-preview.1'; a plain Accept returns the real package list.
+PACKAGE_URL="$(curl -LsS -u "user:${AZP_TOKEN}" -H 'Accept: application/json' \
   "${AZP_URL}/_apis/distributedtask/packages/agent?platform=linux-arm64" \
-  | jq -r '.value[0].downloadUrl')"
+  | jq -r 'first(.value[]? | select(.platform=="linux-arm64") | .downloadUrl) // empty')"
 
 if [ -z "${PACKAGE_URL}" ] || [ "${PACKAGE_URL}" = "null" ]; then
   echo "ERROR: could not resolve the agent package URL." >&2
