@@ -45,6 +45,17 @@ ENV JAVA_HOME="/usr/lib/jvm/java-17-openjdk-arm64"
 # sonar-scanner 5.x must use the system JRE, not try to provision one
 ENV SONAR_SCANNER_OPTS=""
 
+# Semgrep — SAST for the Groovy/JS extracted from Boomi components. Installed via
+# pip; point pip AND requests at the system CA bundle (which now trusts the proxy
+# root CA) so install + any registry access work behind the TLS-intercepting proxy.
+ENV PIP_CERT=/etc/ssl/certs/ca-certificates.crt \
+    REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir semgrep \
+    && semgrep --version
+
 # The agent refuses to configure as root by default; run it as a dedicated user.
 RUN useradd -m -s /bin/bash agent
 WORKDIR /azp

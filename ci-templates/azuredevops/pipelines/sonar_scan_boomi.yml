@@ -15,6 +15,11 @@ parameters:
     displayName: 'Comma-separated Boomi component IDs to scan'
     type: string
     default: ''
+  - name: semgrepFailOn
+    displayName: 'Fail the build on Semgrep findings of this level (report-only if none)'
+    type: string
+    default: 'none'
+    values: ['none', 'error', 'warning']
 
 pool:
   name: 'Default'        # must match the self-hosted agent pool (see test-env/README.md)
@@ -35,12 +40,12 @@ steps:
       mkdir -p "$(WORKSPACE)"
       chmod +x "$(SCRIPTS_HOME)"/bin/*.sh
       chmod +x "$(Build.SourcesDirectory)"/ci-templates/azuredevops/pipelines/*.sh
-      echo "Tooling versions:"; bash --version | head -1; jq --version; xmllint --version 2>&1 | head -1; sonar-scanner --version | tail -1
+      echo "Tooling versions:"; bash --version | head -1; jq --version; xmllint --version 2>&1 | head -1; sonar-scanner --version | tail -1; semgrep --version
     displayName: 'Prepare environment'
 
   - script: |
       bash "$(Build.SourcesDirectory)/ci-templates/azuredevops/pipelines/sonar_scan_boomi.sh"
-    displayName: 'Export Boomi components and run SonarQube scan'
+    displayName: 'Export, extract scripts, Semgrep SAST + SonarQube scan'
     env:
       authToken: $(authToken)
       baseURL: $(baseURL)
@@ -48,5 +53,11 @@ steps:
       sonarHostURL: $(sonarHostURL)
       sonarToken: $(sonarToken)
       sonarProjectKey: $(sonarProjectKey)
+      SEMGREP_FAIL_ON: ${{ parameters.semgrepFailOn }}
       SCRIPTS_HOME: $(SCRIPTS_HOME)
       WORKSPACE: $(WORKSPACE)
+
+  - publish: $(WORKSPACE)/boomi-scan
+    artifact: boomi-scan
+    displayName: 'Publish scan artifacts (Semgrep SARIF + extracted scripts)'
+    condition: always()
