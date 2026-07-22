@@ -37,6 +37,18 @@ rm -rf "$SCAN_ROOT"; mkdir -p "$COMP_DIR" "$SCRIPTS_DIR"
 
 # ---------------------------------------------------------------- 1) export
 cd "$SCRIPTS_HOME" || { echo "ERROR: cannot cd to SCRIPTS_HOME=$SCRIPTS_HOME" >&2; exit 1; }
+
+# Stage a component XML into COMP_DIR named after its process/component @name, so the
+# process NAME (not the bare component id) shows in SonarQube and in script filenames.
+stage_component() {
+  local src="$1" idhint="$2" name safe
+  name="$(xmllint --xpath 'string(/*[local-name()="Component"]/@name)' "$src" 2>/dev/null)"
+  safe="$(printf '%s' "${name:-$idhint}" | tr -cs 'A-Za-z0-9._-' '_' | sed 's/^_*//; s/_*$//')"
+  [ -z "$safe" ] && safe="$idhint"
+  cp "$src" "${COMP_DIR}/${safe}__${idhint}.xml"
+  printf '%s' "$safe"
+}
+
 exported=0
 IFS=',' read -ra IDS <<< "$componentIds"
 for raw in "${IDS[@]}"; do
@@ -45,28 +57,35 @@ for raw in "${IDS[@]}"; do
   ( source bin/getComponent.sh componentId="$cid" version="" ) || true
   src="${WORKSPACE}/${cid}.xml"
   if [ -s "$src" ] && grep -q "Component" "$src" 2>/dev/null; then
-    cp "$src" "${COMP_DIR}/${cid}.xml"; exported=$((exported + 1))
+    nm="$(stage_component "$src" "${cid:0:8}")"; exported=$((exported + 1))
+    echo "    exported as ${nm}__${cid:0:8}.xml"
   else
     echo "    WARN: no valid component XML for '$cid' (check componentId / credentials)" >&2
   fi
 done
-[ "$exported" -eq 0 ] && { echo "ERROR: no components exported — nothing to scan." >&2; exit 1; }
-echo "Exported ${exported} component(s)."
+
+# (demo) stage the deliberately-vulnerable sample PROCESS component(s) so a run always
+# shows findings — the risky Groovy lives in a real Data Process shape (not external
+# scripts), so both Semgrep (extracted code) and the SonarQube XPath rules fire.
+# Enable via the pipeline's includeSampleFindings parameter (Azure stringifies bools).
+case "${INCLUDE_SAMPLE_FINDINGS:-false}" in
+  [Tt][Rr][Uu][Ee] | 1 | [Yy][Ee][Ss])
+    for s in "${REPO_ROOT}/test-env/samples/"*.xml; do
+      [ -e "$s" ] || continue
+      nm="$(stage_component "$s" "sample")"
+      echo "NOTE: included risky sample component '${nm}' (deliberately vulnerable)."
+    done
+    ;;
+esac
+
+if ! ls "${COMP_DIR}"/*.xml >/dev/null 2>&1; then
+  echo "ERROR: no component XML to scan (no export succeeded and no sample included)." >&2
+  exit 1
+fi
+echo "Staged $(ls "${COMP_DIR}"/*.xml | wc -l | tr -d ' ') component(s) for scanning."
 
 # ---------------------------------------------------------------- 2) extract scripts
 bash "${PIPE_DIR}/extract_scripts.sh" "$COMP_DIR" "$SCRIPTS_DIR" || true
-
-# (demo) also scan the deliberately-vulnerable sample scripts so a run always shows
-# findings. Enable via the pipeline's includeSampleFindings parameter.
-# (Azure stringifies boolean params as True/False, so accept either case.)
-case "${INCLUDE_SAMPLE_FINDINGS:-false}" in
-  [Tt][Rr][Uu][Ee] | 1 | [Yy][Ee][Ss])
-    if ls "${REPO_ROOT}/test-env/semgrep/samples/"* >/dev/null 2>&1; then
-      cp "${REPO_ROOT}/test-env/semgrep/samples/"* "$SCRIPTS_DIR"/ 2>/dev/null || true
-      echo "NOTE: included test-env/semgrep/samples (deliberately vulnerable) to demonstrate findings."
-    fi
-    ;;
-esac
 
 # ---------------------------------------------------------------- 3) Semgrep SAST
 sarif="${SCAN_ROOT}/semgrep.sarif"

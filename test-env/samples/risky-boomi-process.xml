@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Demo Boomi PROCESS component with a Data Process (Groovy) shape containing
+  deliberately-vulnerable code. Wired into the scan by the pipeline's
+  includeSampleFindings parameter. Exercises, in one component:
+   - Semgrep SAST on the extracted Groovy (SQLi, hardcoded creds, OS exec, XXE, weak crypto)
+   - SonarQube XPath rules that read the <script> source (Scripting_No_*_In_Code)
+   - structural XPath rules (Scripting_Shapes_Require_Review, Shapes_Should_Have_User_Label,
+     Connector_Must_Allow_Dynamic_Credentials)
+  NOT a real integration. Do not deploy.
+-->
+<bns:Component xmlns:bns="http://api.platform.boomi.com/" name="Risky Order Sync" type="process">
+  <bns:object>
+    <process>
+      <shapes>
+        <shape shapetype="start" name="shape1" userlabel="">
+          <configuration/>
+        </shape>
+        <shape shapetype="dataprocess" name="shape2" userlabel="">
+          <configuration>
+            <dataprocess>
+              <dataprocessscript language="groovy2"><script>import groovy.sql.Sql
+def props = dataContext.getProperties(0)
+def orderId = props.getProperty("dynamicdocument.DDP_orderId")
+def password = "P@ssw0rd-Hardcoded-123"
+def apiKey = "ak_live_deadbeefcafe1234"
+def sql = Sql.newInstance("jdbc:mysql://db/orders", "root", password)
+def rows = sql.rows("SELECT * FROM orders WHERE id = '" + orderId + "'")
+Runtime.getRuntime().exec("sh -c 'sync-order " + orderId + "'")
+def parsed = new XmlSlurper().parseText(new String(dataContext.getStream(0).bytes, "UTF-8"))
+def cipher = javax.crypto.Cipher.getInstance("DES")
+dataContext.storeStream(dataContext.getStream(0), props)
+</script></dataprocessscript>
+            </dataprocess>
+          </configuration>
+        </shape>
+        <shape shapetype="connectoraction" name="shape3" userlabel="Push to ERP">
+          <configuration>
+            <connectoraction actionType="UPSERT" allowDynamicCredentials="NONE" connectorType="http"/>
+          </configuration>
+        </shape>
+      </shapes>
+    </process>
+  </bns:object>
+</bns:Component>

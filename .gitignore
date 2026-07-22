@@ -51,6 +51,8 @@ sonarqube/*.zip
 
 # test-env: the SonarQube quality profile is source (keep despite the *.xml ignore)
 !test-env/sonarqube/boomi-quality-profile.xml
+# test-env: risky demo component fixtures are source (keep despite the *.xml ignore)
+!test-env/samples/*.xml
 
 # Node modules (if using any JS tooling)
 node_modules/
