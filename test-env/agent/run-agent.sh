@@ -25,6 +25,19 @@ if [ ! -f "${HERE}/sonar-scanner.zip" ]; then
     -o "${HERE}/sonar-scanner.zip"
 fi
 
+# Pre-fetch the Azure DevOps agent on the host and bake it into the image, so the
+# container never does the large runtime CDN download (which stalls behind the proxy).
+# For an amd64 host, set AZP_AGENT_PLATFORM=linux-x64.
+AZP_AGENT_PLATFORM="${AZP_AGENT_PLATFORM:-linux-arm64}"
+if [ ! -f "${HERE}/azp-agent.tgz" ]; then
+  echo "Fetching the Azure DevOps agent (${AZP_AGENT_PLATFORM}) on the host ..."
+  agent_url="$(curl -fsSL --connect-timeout 20 --max-time 60 -u "user:${AZP_TOKEN}" -H 'Accept: application/json' \
+    "${AZP_URL}/_apis/distributedtask/packages/agent?platform=${AZP_AGENT_PLATFORM}" \
+    | jq -r --arg p "$AZP_AGENT_PLATFORM" 'first(.value[]? | select(.platform==$p) | .downloadUrl) // empty')"
+  [ -n "$agent_url" ] || { echo "ERROR: could not resolve agent URL (check AZP_URL/AZP_TOKEN)." >&2; exit 1; }
+  curl -fL --retry 5 --retry-delay 5 --connect-timeout 30 --max-time 600 -o "${HERE}/azp-agent.tgz" "$agent_url"
+fi
+
 if ! ls "${HERE}/certs/"*.crt >/dev/null 2>&1; then
   echo "WARNING: no CA in test-env/agent/certs/. If you are behind a TLS-intercepting"
   echo "         proxy (e.g. Zscaler), agent registration to Azure DevOps may fail."

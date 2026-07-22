@@ -74,10 +74,16 @@ RUN arch="$(dpkg --print-architecture)"; case "$arch" in amd64) na=x64 ;; arm64)
 # The agent refuses to configure as root by default; run it as a dedicated user.
 RUN useradd -m -s /bin/bash agent
 WORKDIR /azp
-RUN chown -R agent:agent /azp
 
-COPY --chown=agent:agent start.sh /azp/start.sh
-RUN chmod +x /azp/start.sh
+# Pre-bake the Azure DevOps agent (fetched on the host by run-agent.sh) so the
+# container skips the large runtime CDN download, which stalls behind the proxy.
+# start.sh detects the baked agent (./config.sh) and only makes the small
+# registration calls at runtime. Falls back to a hardened download if absent.
+COPY azp-agent.tgz /tmp/azp-agent.tgz
+RUN tar -xzf /tmp/azp-agent.tgz -C /azp && rm /tmp/azp-agent.tgz
+
+COPY start.sh /azp/start.sh
+RUN chmod +x /azp/start.sh && chown -R agent:agent /azp
 
 USER agent
 ENTRYPOINT ["/azp/start.sh"]
