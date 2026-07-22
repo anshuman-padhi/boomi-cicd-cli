@@ -337,5 +337,52 @@
         </parameter>
       </parameters>
     </rule>
+    <!-- ===== Rules that inspect the embedded Groovy/JS SOURCE inside <script> (text match) ===== -->
+    <rule>
+      <repositoryKey>xml</repositoryKey>
+      <key>Scripting_No_Hardcoded_Secret_In_Code</key>
+      <type>VULNERABILITY</type>
+      <priority>MAJOR</priority>
+      <name>Embedded script must not hardcode secrets</name>
+      <templateKey>XPathCheck</templateKey>
+      <description>A Data Process Groovy/JS script references a credential/secret literal. Store secrets in environment extensions / a secret manager, not in script code. (Complements the Semgrep SAST.)</description>
+      <parameters>
+        <parameter>
+          <key>filePattern</key>
+          <value>**/**.xml</value>
+        </parameter>
+        <parameter>
+          <key>expression</key>
+          <value>//dataprocessscript/script[contains(.,'password') or contains(.,'passwd') or contains(.,'apiKey') or contains(.,'api_key') or contains(.,'secret') or contains(.,'token')]</value>
+        </parameter>
+        <parameter>
+          <key>message</key>
+          <value>Embedded script appears to reference a hardcoded secret (password/apiKey/secret/token) — externalize it.</value>
+        </parameter>
+      </parameters>
+    </rule>
+    <rule>
+      <repositoryKey>xml</repositoryKey>
+      <key>Scripting_No_OS_Command_In_Code</key>
+      <type>VULNERABILITY</type>
+      <priority>MAJOR</priority>
+      <name>Embedded script must not run OS commands</name>
+      <templateKey>XPathCheck</templateKey>
+      <description>A Data Process Groovy/JS script executes an OS command (Runtime.exec / .execute() / ProcessBuilder). This is a command-injection and least-privilege risk. (Complements the Semgrep SAST.)</description>
+      <parameters>
+        <parameter>
+          <key>filePattern</key>
+          <value>**/**.xml</value>
+        </parameter>
+        <parameter>
+          <key>expression</key>
+          <value>//dataprocessscript/script[contains(.,'Runtime.getRuntime') or contains(.,'.execute()') or contains(.,'ProcessBuilder')]</value>
+        </parameter>
+        <parameter>
+          <key>message</key>
+          <value>Embedded script executes an OS command (Runtime.exec/.execute()/ProcessBuilder) — remove or tightly validate.</value>
+        </parameter>
+      </parameters>
+    </rule>
   </rules>
 </profile>
