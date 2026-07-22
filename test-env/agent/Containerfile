@@ -59,6 +59,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 python3
     && pip3 install --no-cache-dir semgrep \
     && semgrep --version
 
+# Node.js — required by SonarQube's JavaScript/TypeScript analyzer (SonarJS) whenever
+# a .js file is in scope (e.g. a JavaScript Boomi Data Process script). Installed from
+# the official nodejs.org tarball (arch-agnostic; works behind the proxy via the CA above).
+ARG NODE_VERSION=20.18.1
+RUN arch="$(dpkg --print-architecture)"; case "$arch" in amd64) na=x64 ;; arm64) na=arm64 ;; *) na="$arch" ;; esac \
+    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${na}.tar.gz" -o /tmp/node.tar.gz \
+    && tar -xzf /tmp/node.tar.gz -C /opt \
+    && ln -sf "/opt/node-v${NODE_VERSION}-linux-${na}/bin/node" /usr/local/bin/node \
+    && ln -sf "/opt/node-v${NODE_VERSION}-linux-${na}/bin/npm" /usr/local/bin/npm \
+    && rm /tmp/node.tar.gz \
+    && node -v
+
 # The agent refuses to configure as root by default; run it as a dedicated user.
 RUN useradd -m -s /bin/bash agent
 WORKDIR /azp
