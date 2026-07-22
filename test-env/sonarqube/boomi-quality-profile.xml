@@ -267,5 +267,75 @@
         </parameter>
       </parameters>
     </rule>
+    <!-- ===== Example rules (added to demonstrate authoring; safe to keep or remove) ===== -->
+    <rule>
+      <repositoryKey>xml</repositoryKey>
+      <key>Scripting_Shapes_Require_Review</key>
+      <type>VULNERABILITY</type>
+      <priority>MAJOR</priority>
+      <name>Custom scripting shapes require security review</name>
+      <templateKey>XPathCheck</templateKey>
+      <description>Data Process Groovy/JavaScript shapes execute custom code. Each must be reviewed for injection, hardcoded secrets and unsafe APIs (see the Semgrep SAST results).</description>
+      <parameters>
+        <parameter>
+          <key>filePattern</key>
+          <value>**/**.xml</value>
+        </parameter>
+        <parameter>
+          <key>expression</key>
+          <value>//dataprocessscript</value>
+        </parameter>
+        <parameter>
+          <key>message</key>
+          <value>Custom script (Data Process) present — review for injection/secrets; see the Semgrep SARIF findings.</value>
+        </parameter>
+      </parameters>
+    </rule>
+    <rule>
+      <repositoryKey>xml</repositoryKey>
+      <key>Connector_Must_Allow_Dynamic_Credentials</key>
+      <type>VULNERABILITY</type>
+      <priority>MAJOR</priority>
+      <name>Connector actions should allow dynamic credentials</name>
+      <templateKey>XPathCheck</templateKey>
+      <description>Connector actions with allowDynamicCredentials="NONE" bind credentials to a single connection, preventing per-environment credential overrides. Enable dynamic/extensible credentials.</description>
+      <parameters>
+        <parameter>
+          <key>filePattern</key>
+          <value>**/**.xml</value>
+        </parameter>
+        <parameter>
+          <key>expression</key>
+          <value>//connectoraction[@allowDynamicCredentials='NONE']</value>
+        </parameter>
+        <parameter>
+          <key>message</key>
+          <value>Connector action does not allow dynamic credentials — use extensible/dynamic credentials for per-environment overrides.</value>
+        </parameter>
+      </parameters>
+    </rule>
+    <rule>
+      <repositoryKey>xml</repositoryKey>
+      <key>Shapes_Should_Have_User_Label</key>
+      <type>CODE_SMELL</type>
+      <priority>MINOR</priority>
+      <name>Process shapes should have a user label</name>
+      <templateKey>XPathCheck</templateKey>
+      <description>Shapes without a user label make a process hard to read and audit. Give every shape a descriptive label.</description>
+      <parameters>
+        <parameter>
+          <key>filePattern</key>
+          <value>**/**.xml</value>
+        </parameter>
+        <parameter>
+          <key>expression</key>
+          <value>//shape[not(@userlabel) or @userlabel='']</value>
+        </parameter>
+        <parameter>
+          <key>message</key>
+          <value>Shape has no user label — name every shape for readable, auditable processes.</value>
+        </parameter>
+      </parameters>
+    </rule>
   </rules>
 </profile>
