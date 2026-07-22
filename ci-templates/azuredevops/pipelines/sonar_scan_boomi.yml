@@ -24,6 +24,10 @@ parameters:
     displayName: 'Extra Semgrep configs to layer on (registry packs, space-separated; needs registry access)'
     type: string
     default: ''
+  - name: includeSampleFindings
+    displayName: 'Also scan the bundled vulnerable sample scripts (demo: guarantees Semgrep findings)'
+    type: boolean
+    default: false
 
 pool:
   name: 'Default'        # must match the self-hosted agent pool (see test-env/README.md)
@@ -59,6 +63,7 @@ steps:
       sonarProjectKey: $(sonarProjectKey)
       SEMGREP_FAIL_ON: ${{ parameters.semgrepFailOn }}
       SEMGREP_EXTRA_CONFIG: ${{ parameters.semgrepExtraConfig }}
+      INCLUDE_SAMPLE_FINDINGS: ${{ parameters.includeSampleFindings }}
       SCRIPTS_HOME: $(SCRIPTS_HOME)
       WORKSPACE: $(WORKSPACE)
 

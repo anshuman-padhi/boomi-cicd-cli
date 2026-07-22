@@ -56,6 +56,18 @@ echo "Exported ${exported} component(s)."
 # ---------------------------------------------------------------- 2) extract scripts
 bash "${PIPE_DIR}/extract_scripts.sh" "$COMP_DIR" "$SCRIPTS_DIR" || true
 
+# (demo) also scan the deliberately-vulnerable sample scripts so a run always shows
+# findings. Enable via the pipeline's includeSampleFindings parameter.
+# (Azure stringifies boolean params as True/False, so accept either case.)
+case "${INCLUDE_SAMPLE_FINDINGS:-false}" in
+  [Tt][Rr][Uu][Ee] | 1 | [Yy][Ee][Ss])
+    if ls "${REPO_ROOT}/test-env/semgrep/samples/"* >/dev/null 2>&1; then
+      cp "${REPO_ROOT}/test-env/semgrep/samples/"* "$SCRIPTS_DIR"/ 2>/dev/null || true
+      echo "NOTE: included test-env/semgrep/samples (deliberately vulnerable) to demonstrate findings."
+    fi
+    ;;
+esac
+
 # ---------------------------------------------------------------- 3) Semgrep SAST
 sarif="${SCAN_ROOT}/semgrep.sarif"
 sg_total=0; sg_err=0
@@ -70,10 +82,19 @@ if ls "$SCRIPTS_DIR"/* >/dev/null 2>&1; then
   ( cd "$SCAN_ROOT" && semgrep scan "${sg_cfg[@]}" \
       --metrics off --disable-version-check --no-git-ignore --sarif --output "$sarif" scripts ) || true
   if [ -f "$sarif" ]; then
+    # Semgrep records severity on the RULE (defaultConfiguration.level), not on the
+    # result — so map ruleId -> level for both the error count and the printout.
     sg_total=$(jq '[.runs[].results[]?] | length' "$sarif" 2>/dev/null || echo 0)
-    sg_err=$(jq '[.runs[].results[]? | select(.level=="error")] | length' "$sarif" 2>/dev/null || echo 0)
+    sg_err=$(jq '
+      (.runs[0].tool.driver.rules // [] | map({key:.id, value:(.defaultConfiguration.level // "warning")}) | from_entries) as $lvl
+      | [ .runs[].results[]? | select( ($lvl[.ruleId] // .level // "warning") == "error") ] | length' \
+      "$sarif" 2>/dev/null || echo 0)
     echo "Semgrep findings: ${sg_total} (error: ${sg_err})"
-    jq -r '.runs[].results[]? | "  [\(.level)] \(.ruleId) — \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)"' "$sarif" 2>/dev/null
+    jq -r '
+      (.runs[0].tool.driver.rules // [] | map({key:.id, value:(.defaultConfiguration.level // "warning")}) | from_entries) as $lvl
+      | .runs[].results[]?
+      | "  [\(($lvl[.ruleId] // .level // "warning") | ascii_upcase)] \(.ruleId | sub(".*[.]";"")) — \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)"' \
+      "$sarif" 2>/dev/null
   fi
 else
   echo "No embedded Groovy/JS scripts found in the exported component(s)."
