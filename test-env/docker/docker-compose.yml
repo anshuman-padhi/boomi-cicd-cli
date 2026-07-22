@@ -1,0 +1,66 @@
+# SonarQube Community + Postgres for a Linux VM (Docker).
+#
+# Prereq (once per VM): SonarQube's embedded Elasticsearch needs a raised map count.
+#   sudo sysctl -w vm.max_map_count=524288
+#   echo "vm.max_map_count=524288" | sudo tee /etc/sysctl.d/99-sonarqube.conf   # persist
+#
+# Up:    docker compose -f test-env/docker/docker-compose.yml up -d
+# Logs:  docker logs -f boomi-sonarqube
+# Down:  docker compose -f test-env/docker/docker-compose.yml down       (keep data)
+#        docker compose -f test-env/docker/docker-compose.yml down -v    (wipe data)
+#
+# The Azure DevOps agent container joins the same `boomi-ci` network (see the setup
+# doc) and reaches SonarQube at http://boomi-sonarqube:9000.
+
+services:
+  db:
+    image: postgres:15
+    container_name: boomi-sonar-db
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar
+    volumes:
+      - sonar_db:/var/lib/postgresql/data
+    networks: [boomi-ci]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sonar -d sonar"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: boomi-sonarqube
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+    ports:
+      - "9000:9000"          # SonarQube UI on the VM's port 9000
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+      - sonar_extensions:/opt/sonarqube/extensions
+      - sonar_logs:/opt/sonarqube/logs
+    networks: [boomi-ci]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:9000/api/system/status | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 60s
+
+networks:
+  boomi-ci:
+    name: boomi-ci
+
+volumes:
+  sonar_db:
+  sonar_data:
+  sonar_extensions:
+  sonar_logs:

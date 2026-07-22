@@ -41,7 +41,10 @@ RUN unzip -q /tmp/sonar-scanner.zip -d /opt \
     && ln -s "/opt/sonar-scanner-${SONAR_SCANNER_VERSION}" /opt/sonar-scanner \
     && rm /tmp/sonar-scanner.zip
 ENV PATH="/opt/sonar-scanner/bin:${PATH}"
-ENV JAVA_HOME="/usr/lib/jvm/java-17-openjdk-arm64"
+# Arch-agnostic JAVA_HOME (works on amd64 AND arm64) via a stable symlink to the
+# installed JRE — don't hardcode /usr/lib/jvm/java-17-openjdk-<arch>.
+RUN ln -sfn "$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")" /opt/java-home
+ENV JAVA_HOME=/opt/java-home
 # sonar-scanner 5.x must use the system JRE, not try to provision one
 ENV SONAR_SCANNER_OPTS=""
 
