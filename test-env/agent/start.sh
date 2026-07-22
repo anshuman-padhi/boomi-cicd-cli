@@ -20,10 +20,19 @@ cleanup() {
 }
 trap 'cleanup; exit 0' EXIT INT TERM
 
+# Resilient curl: bounded connect/transfer time, abort on stalls (< 1KB/s for 60s),
+# and retry transient failures/timeouts — the dev.azure.com CDN download otherwise
+# occasionally hangs indefinitely behind the proxy.
+CURL_DL=(--fail --location --show-error --silent
+  --connect-timeout 30 --max-time 900 --speed-limit 1024 --speed-time 60
+  --retry 6 --retry-delay 5 --retry-connrefused)
+CURL_API=(--fail --location --show-error --silent
+  --connect-timeout 20 --max-time 120 --retry 6 --retry-delay 3 --retry-connrefused)
+
 echo "1/3 Resolving agent package for linux-arm64 from ${AZP_URL} ..."
 # NOTE: do NOT pin api-version here. Some orgs return a stub ({"url":null}) for
 # 'api-version=6.0-preview.1'; a plain Accept returns the real package list.
-PACKAGE_URL="$(curl -LsS -u "user:${AZP_TOKEN}" -H 'Accept: application/json' \
+PACKAGE_URL="$(curl "${CURL_API[@]}" -u "user:${AZP_TOKEN}" -H 'Accept: application/json' \
   "${AZP_URL}/_apis/distributedtask/packages/agent?platform=linux-arm64" \
   | jq -r 'first(.value[]? | select(.platform=="linux-arm64") | .downloadUrl) // empty')"
 
@@ -33,8 +42,16 @@ if [ -z "${PACKAGE_URL}" ] || [ "${PACKAGE_URL}" = "null" ]; then
   exit 1
 fi
 
-echo "2/3 Downloading and extracting agent ..."
-curl -LsS "${PACKAGE_URL}" | tar -xz
+echo "2/3 Downloading agent package (with retries) ..."
+# Download to a file (not piped to tar) so a retried attempt can't corrupt the stream.
+for attempt in 1 2 3; do
+  if curl "${CURL_DL[@]}" -o /azp/agent.tgz "${PACKAGE_URL}"; then break; fi
+  echo "   download attempt ${attempt} failed; retrying in 10s ..." >&2
+  sleep 10
+  [ "$attempt" = "3" ] && { echo "ERROR: agent package download failed after retries." >&2; exit 1; }
+done
+echo "    extracting ..."
+tar -xzf /azp/agent.tgz && rm -f /azp/agent.tgz
 
 echo "3/3 Configuring agent '${AZP_AGENT_NAME}' in pool '${AZP_POOL}' ..."
 ./config.sh --unattended \
