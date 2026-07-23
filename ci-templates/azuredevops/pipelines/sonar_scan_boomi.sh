@@ -169,17 +169,29 @@ sarif_arg=(); [ -f "$sarif" ] && sarif_arg=(-Dsonar.sarifReportPaths=semgrep.sar
 # Pass the token via the SONAR_TOKEN env var (read natively by sonar-scanner) instead of
 # -Dsonar.token=..., so the secret is not exposed in the long-lived process's argv.
 export SONAR_TOKEN="${sonarToken}"
-sonar-scanner \
-  -Dsonar.projectKey="${sonarProjectKey}" \
-  -Dsonar.projectName="Boomi Components" \
-  -Dsonar.projectBaseDir="${SCAN_ROOT}" \
-  -Dsonar.sources=. \
-  -Dsonar.inclusions="**/*.xml,**/*.groovy,**/*.js" \
-  -Dsonar.import_unknown_files=true \
-  -Dsonar.scm.disabled=true \
-  "${sarif_arg[@]}" \
-  -Dsonar.host.url="${sonarHostURL}"
+
+# Run the analysis from a copy OUTSIDE the git working tree. On the CI agent SCAN_ROOT lives
+# under the checked-out repo's git-ignored workspace/, and sonar-scanner's git detection drops
+# ignored files from indexing — so the extracted .groovy/.js were never indexed and Semgrep
+# SARIF findings could not map to file:line (they fell back to the project). XML has a native
+# analyzer so it indexed regardless, which is why only the scripts were affected. Copying the
+# self-contained scan tree to a temp dir (no surrounding .git) makes every file index cleanly.
+SONAR_BASE="$(mktemp -d 2>/dev/null || echo "${TMPDIR:-/tmp}/boomi-sonar-$$")/scan"
+mkdir -p "$SONAR_BASE"
+cp -R "$SCAN_ROOT"/. "$SONAR_BASE"/ 2>/dev/null || true
+
+( cd "$SONAR_BASE" && sonar-scanner \
+    -Dsonar.projectKey="${sonarProjectKey}" \
+    -Dsonar.projectName="Boomi Components" \
+    -Dsonar.projectBaseDir="${SONAR_BASE}" \
+    -Dsonar.sources=. \
+    -Dsonar.inclusions="**/*.xml,**/*.groovy,**/*.js" \
+    -Dsonar.import_unknown_files=true \
+    -Dsonar.scm.disabled=true \
+    "${sarif_arg[@]}" \
+    -Dsonar.host.url="${sonarHostURL}" )
 scan_rc=$?
+rm -rf "$(dirname "$SONAR_BASE")" 2>/dev/null || true
 if [ "$scan_rc" -ne 0 ]; then
   echo "ERROR: sonar-scanner failed (exit ${scan_rc})." >&2
   exit "$scan_rc"
