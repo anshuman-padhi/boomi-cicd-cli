@@ -175,6 +175,7 @@ sonar-scanner \
   -Dsonar.projectBaseDir="${SCAN_ROOT}" \
   -Dsonar.sources=. \
   -Dsonar.inclusions="**/*.xml,**/*.groovy,**/*.js" \
+  -Dsonar.import_unknown_files=true \
   -Dsonar.scm.disabled=true \
   "${sarif_arg[@]}" \
   -Dsonar.host.url="${sonarHostURL}"
