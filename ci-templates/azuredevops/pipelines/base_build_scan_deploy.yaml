@@ -57,20 +57,29 @@ parameters:
   # ---- deploy controls ----
   - name: deployToQA
     type: boolean
-    default: true
+    default: false
     displayName: "Deploy to QA Environment"
   - name: deployToProd
     type: boolean
     default: false
     displayName: "Deploy to Production Environment"
+  - name: qaEnvName
+    type: string
+    default: ""
+    displayName: "QA Boomi environment name (required when deploying to QA)"
+  - name: prodEnvName
+    type: string
+    default: ""
+    displayName: "Production Boomi environment name (required when deploying to Prod)"
   - name: branchName
     type: string
     default: ""
     displayName: "Boomi Branch Name (for branch/merge feature)"
 
 variables:
+  # Only groups that must exist. QA/Prod environment names are parameters (qaEnvName /
+  # prodEnvName), so this pipeline needs no boomiruntime group to load + run the scan.
   - group: boomicicd     # authToken (secret), baseURL
-  - group: boomiruntime  # *_apim_envname / *_apim_atom
   - group: boomi-sonar   # sonarHostURL, sonarToken (secret), sonarProjectKey
   - name: SCRIPTS_HOME
     value: $(Build.SourcesDirectory)/cli/scripts
@@ -170,7 +179,7 @@ stages:
                   SCRIPTS_HOME: $(SCRIPTS_HOME)
                   packageVersion: $(packageVersion)
                   componentIds: ${{ parameters.componentIds }}
-                  env: $(development_apim_envname)
+                  env: ${{ parameters.qaEnvName }}
                   notes: "QA - ${{ parameters.notes }}"
                   listenerStatus: "RUNNING"
                   branchName: ${{ parameters.branchName }}
@@ -220,6 +229,6 @@ stages:
                   SCRIPTS_HOME: $(SCRIPTS_HOME)
                   packageVersion: $(packageVersion)
                   componentIds: ${{ parameters.componentIds }}
-                  env: $(production_apim_envname)
+                  env: ${{ parameters.prodEnvName }}
                   notes: "PRODUCTION - ${{ parameters.notes }}"
                   branchName: ${{ parameters.branchName }}

@@ -9,8 +9,9 @@
 #
 # Prereqs (Pipelines → Library variable groups):
 #   boomicicd    -> authToken (secret), baseURL
-#   boomiruntime -> development_apim_envname (QA), production_apim_envname (Prod)
 #   boomi-sonar  -> sonarHostURL, sonarToken (secret), sonarProjectKey
+# QA/Prod environment names are pipeline PARAMETERS (qaEnvName / prodEnvName) — set them
+# at queue time when you enable a deploy. No boomiruntime group is required.
 # Prod approval: create a "Production" Environment in Azure DevOps with required approvers.
 #
 
@@ -35,11 +36,19 @@ parameters:
   - name: deployToQA
     displayName: "Deploy to QA"
     type: boolean
-    default: true
+    default: false
   - name: deployToProd
     displayName: "Deploy to Production (requires approval)"
     type: boolean
     default: false
+  - name: qaEnvName
+    displayName: "QA Boomi environment name (only if deploying to QA)"
+    type: string
+    default: ""
+  - name: prodEnvName
+    displayName: "Production Boomi environment name (only if deploying to Prod)"
+    type: string
+    default: ""
   - name: notes
     displayName: "Deployment Notes"
     type: string
@@ -68,4 +77,6 @@ extends:
     semgrepFailOn: ${{ parameters.semgrepFailOn }}
     deployToQA: ${{ parameters.deployToQA }}
     deployToProd: ${{ parameters.deployToProd }}
+    qaEnvName: ${{ parameters.qaEnvName }}
+    prodEnvName: ${{ parameters.prodEnvName }}
     branchName: ${{ parameters.branchName }}
