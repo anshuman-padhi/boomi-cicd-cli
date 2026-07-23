@@ -1,0 +1,79 @@
+###########################################
+# SAST Scan Template (Semgrep + SonarQube)
+###########################################
+#
+# Exports a Boomi component AND (by default) its full dependency tree — sub-processes,
+# referenced Process Script components, profiles, connectors — then extracts embedded
+# Groovy/JS, runs Semgrep SAST, and publishes results to SonarQube.
+#
+# Reusable step template (include as a job step in a stage). See base_build_scan_deploy.yaml.
+
+parameters:
+  #####################
+  # Common parameters #
+  #####################
+  h1: ""
+  h2: ""
+  baseURL: ""
+  authToken: ""
+  VERBOSE: ""
+  SLEEP_TIMER: ""
+  WORKSPACE: ""
+  SCRIPTS_HOME: ""
+
+  #######################
+  # Specific parameters #
+  #######################
+  componentIds: ""            # comma-separated entry component IDs
+  sonarHostURL: ""
+  sonarToken: ""
+  sonarProjectKey: "Boomi"
+  scanReferences: "true"      # true = recurse into referenced components/sub-processes
+  referenceSource: "both"     # xml | api | both
+  maxComponents: "300"        # safety cap on tree size
+  maxDepth: "15"              # safety cap on recursion depth
+  semgrepFailOn: "none"       # none | warning | error  (build gate)
+  semgrepExtraConfig: ""      # extra Semgrep registry packs (space-separated)
+  includeSampleFindings: "false"
+
+steps:
+  - script: |
+      set -o pipefail
+      echo "Deriving repository root from SCRIPTS_HOME"
+      export REPO_ROOT="${SCRIPTS_HOME%/cli/scripts}"
+      cd "${REPO_ROOT}"
+      chmod +x cli/scripts/bin/*.sh ci-templates/azuredevops/pipelines/*.sh
+      echo "Tooling:"; jq --version; xmllint --version 2>&1 | head -1; sonar-scanner --version 2>&1 | tail -1; semgrep --version
+      bash ci-templates/azuredevops/pipelines/sonar_scan_boomi.sh
+    displayName: "SAST Scan (Semgrep + SonarQube) — component tree"
+    env:
+      #############
+      # Common    #
+      #############
+      h1: "${{ parameters.h1 }}"
+      h2: "${{ parameters.h2 }}"
+      baseURL: "${{ parameters.baseURL }}"
+      authToken: "${{ parameters.authToken }}"
+      VERBOSE: "${{ parameters.VERBOSE }}"
+      SLEEP_TIMER: "${{ parameters.SLEEP_TIMER }}"
+      WORKSPACE: "${{ parameters.WORKSPACE }}"
+      SCRIPTS_HOME: "${{ parameters.SCRIPTS_HOME }}"
+      #############
+      # Specific  #
+      #############
+      componentIds: "${{ parameters.componentIds }}"
+      sonarHostURL: "${{ parameters.sonarHostURL }}"
+      sonarToken: "${{ parameters.sonarToken }}"
+      sonarProjectKey: "${{ parameters.sonarProjectKey }}"
+      SCAN_REFERENCES: "${{ parameters.scanReferences }}"
+      REFERENCE_SOURCE: "${{ parameters.referenceSource }}"
+      MAX_COMPONENTS: "${{ parameters.maxComponents }}"
+      MAX_DEPTH: "${{ parameters.maxDepth }}"
+      SEMGREP_FAIL_ON: "${{ parameters.semgrepFailOn }}"
+      SEMGREP_EXTRA_CONFIG: "${{ parameters.semgrepExtraConfig }}"
+      INCLUDE_SAMPLE_FINDINGS: "${{ parameters.includeSampleFindings }}"
+
+  - publish: ${{ parameters.WORKSPACE }}/boomi-scan
+    artifact: boomi-scan
+    displayName: "Publish scan artifacts (SARIF, extracted scripts, component tree)"
+    condition: always()

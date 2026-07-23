@@ -15,6 +15,19 @@ parameters:
     displayName: 'Comma-separated Boomi component IDs to scan'
     type: string
     default: ''
+  - name: scanReferences
+    displayName: 'Also scan referenced components + sub-processes (recursively)'
+    type: boolean
+    default: true
+  - name: referenceSource
+    displayName: 'Reference discovery source'
+    type: string
+    default: 'both'
+    values: ['xml', 'api', 'both']
+  - name: maxComponents
+    displayName: 'Max components to discover (safety cap)'
+    type: number
+    default: 300
   - name: semgrepFailOn
     displayName: 'Fail the build on Semgrep findings of this level (report-only if none)'
     type: string
@@ -58,6 +71,9 @@ steps:
       authToken: $(authToken)
       baseURL: $(baseURL)
       componentIds: ${{ parameters.componentIds }}
+      SCAN_REFERENCES: ${{ parameters.scanReferences }}
+      REFERENCE_SOURCE: ${{ parameters.referenceSource }}
+      MAX_COMPONENTS: ${{ parameters.maxComponents }}
       sonarHostURL: $(sonarHostURL)
       sonarToken: $(sonarToken)
       sonarProjectKey: $(sonarProjectKey)

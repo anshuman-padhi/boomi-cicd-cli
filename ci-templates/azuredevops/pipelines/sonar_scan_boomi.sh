@@ -22,6 +22,14 @@ set -o pipefail
 sonarProjectKey="${sonarProjectKey:-Boomi}"
 SEMGREP_FAIL_ON="${SEMGREP_FAIL_ON:-}"   # empty = report only; 'error' or 'warning' = gate the build
 
+# Recursive dependency discovery: scan the entry component(s) PLUS every component they
+# reference (sub-processes, referenced Process Script components, profiles, connector
+# operations/settings ...), discovered transitively and de-duplicated.
+SCAN_REFERENCES="${SCAN_REFERENCES:-true}"   # false = scan only the exact componentIds given
+REFERENCE_SOURCE="${REFERENCE_SOURCE:-both}" # xml | api | both  (both = XML-scrape ∪ ComponentReference API)
+MAX_COMPONENTS="${MAX_COMPONENTS:-300}"      # safety cap on total tree size
+MAX_DEPTH="${MAX_DEPTH:-15}"                 # safety cap on recursion depth
+
 export h1="${h1:-Content-Type: application/json}" h2="${h2:-Accept: application/json}"
 export VERBOSE="${VERBOSE:-false}" SLEEP_TIMER="${SLEEP_TIMER:-0.2}"
 export SCRIPTS_HOME WORKSPACE authToken baseURL h1 h2 VERBOSE SLEEP_TIMER
@@ -49,20 +57,50 @@ stage_component() {
   printf '%s' "$safe"
 }
 
+# Discover + export the component(s). With SCAN_REFERENCES=true (default) each input id
+# is expanded into its full dependency tree (deduped) via getComponentTree.sh; otherwise
+# only the exact ids given are exported. The manifest TSV drives staging, so transient or
+# non-component exports (out.xml, error responses) are never scanned.
+TREE_ALL="${SCAN_ROOT}/component_tree.tsv"; : > "$TREE_ALL"
 exported=0
 IFS=',' read -ra IDS <<< "$componentIds"
 for raw in "${IDS[@]}"; do
   cid="$(echo "$raw" | xargs)"; [ -z "$cid" ] && continue
-  echo "==> Exporting Boomi component: $cid"
-  ( source bin/getComponent.sh componentId="$cid" version="" ) || true
-  src="${WORKSPACE}/${cid}.xml"
-  if [ -s "$src" ] && grep -q "Component" "$src" 2>/dev/null; then
-    nm="$(stage_component "$src" "${cid:0:8}")"; exported=$((exported + 1))
-    echo "    exported as ${nm}__${cid:0:8}.xml"
-  else
-    echo "    WARN: no valid component XML for '$cid' (check componentId / credentials)" >&2
-  fi
+  case "$SCAN_REFERENCES" in
+    [Tt][Rr][Uu][Ee] | 1 | [Yy][Ee][Ss])
+      echo "==> Discovering dependency tree from: $cid (source=${REFERENCE_SOURCE}, maxComponents=${MAX_COMPONENTS}, maxDepth=${MAX_DEPTH})"
+      tf="${WORKSPACE}/_tree_${cid}.tsv"
+      ( source bin/getComponentTree.sh componentId="$cid" referenceSource="$REFERENCE_SOURCE" \
+          maxComponents="$MAX_COMPONENTS" maxDepth="$MAX_DEPTH" treeFile="$tf" ) || true
+      [ -f "$tf" ] && cat "$tf" >> "$TREE_ALL"
+      ;;
+    *)
+      echo "==> Exporting single Boomi component: $cid"
+      ( source bin/getComponent.sh componentId="$cid" version="" ) || true
+      src="${WORKSPACE}/${cid}.xml"
+      if [ -s "$src" ] && grep -q "Component" "$src" 2>/dev/null; then
+        ctype="$(xmllint --xpath "string(/*[local-name()='Component']/@type)" "$src" 2>/dev/null)"
+        printf '%s\t%s\t%s\t%s\n' "$cid" "${ctype:-component}" "$cid" "0" >> "$TREE_ALL"
+      else
+        echo "    WARN: no valid component XML for '$cid' (check componentId / credentials)" >&2
+      fi
+      ;;
+  esac
 done
+
+# Stage every UNIQUE discovered component (named by its @name) into COMP_DIR for scanning.
+if [ -s "$TREE_ALL" ]; then
+  awk -F'\t' '!seen[$1]++' "$TREE_ALL" > "${TREE_ALL}.uniq" && mv "${TREE_ALL}.uniq" "$TREE_ALL"
+  while IFS=$'\t' read -r tid ttype tname tdepth; do
+    [ -z "$tid" ] && continue
+    src="${WORKSPACE}/${tid}.xml"
+    [ -s "$src" ] || continue
+    nm="$(stage_component "$src" "${tid:0:8}")"
+    exported=$((exported + 1))
+    echo "    staged ${nm}__${tid:0:8}.xml  (${ttype}, depth ${tdepth})"
+  done < "$TREE_ALL"
+  echo "Staged ${exported} unique component(s) from the dependency tree."
+fi
 
 # (demo) stage the deliberately-vulnerable sample PROCESS component(s) so a run always
 # shows findings — the risky Groovy lives in a real Data Process shape (not external
@@ -121,9 +159,16 @@ fi
 
 # ---------------------------------------------------------------- 4) SonarQube
 echo "sonarHostURL=${sonarHostURL}  sonarToken length=${#sonarToken}"
-echo "SonarQube auth preflight: $(curl -s -u "${sonarToken}:" "${sonarHostURL}/api/authentication/validate")"
+# Auth preflight — pass the token via a curl config on stdin (-K -) so it never appears
+# in the process argv (ps aux) or in a traced command line; print only the HTTP status.
+sonar_http="$(printf 'user = "%s:"\n' "${sonarToken}" \
+  | curl -s -K - -o /dev/null -w '%{http_code}' "${sonarHostURL}/api/authentication/validate")"
+echo "SonarQube auth preflight: HTTP ${sonar_http}"
 sarif_arg=(); [ -f "$sarif" ] && sarif_arg=(-Dsonar.sarifReportPaths=semgrep.sarif)
 
+# Pass the token via the SONAR_TOKEN env var (read natively by sonar-scanner) instead of
+# -Dsonar.token=..., so the secret is not exposed in the long-lived process's argv.
+export SONAR_TOKEN="${sonarToken}"
 sonar-scanner \
   -Dsonar.projectKey="${sonarProjectKey}" \
   -Dsonar.projectName="Boomi Components" \
@@ -132,8 +177,7 @@ sonar-scanner \
   -Dsonar.inclusions="**/*.xml,**/*.groovy,**/*.js" \
   -Dsonar.scm.disabled=true \
   "${sarif_arg[@]}" \
-  -Dsonar.host.url="${sonarHostURL}" \
-  -Dsonar.token="${sonarToken}"
+  -Dsonar.host.url="${sonarHostURL}"
 scan_rc=$?
 if [ "$scan_rc" -ne 0 ]; then
   echo "ERROR: sonar-scanner failed (exit ${scan_rc})." >&2

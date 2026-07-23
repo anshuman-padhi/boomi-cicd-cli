@@ -1,0 +1,225 @@
+##################################################################
+# Build → Scan → Deploy (QA, Prod) Template for Boomi            #
+##################################################################
+#
+# A build-once-deploy-many pipeline with an integrated SAST gate:
+#   1. Build the package ONCE from the given componentIds
+#   2. SAST scan the component(s) AND their full dependency tree (sub-processes,
+#      referenced script components, profiles, connectors) with Semgrep + SonarQube
+#   3. Deploy the SAME package to QA
+#   4. Deploy the SAME package to Production (behind a manual approval gate)
+#
+# The Scan stage gates the deploys: with semgrepFailOn=error|warning a qualifying
+# finding fails the stage and QA/Prod deployment does not run.
+#
+# Modeled on base_build_approval_deploy.yaml. Usage: see examples/boomi-build-scan-deploy.yaml
+#
+
+parameters:
+  - name: packageVersion
+    type: string
+    displayName: "Package Version (0 for auto-generated)"
+  - name: componentIds
+    type: string
+    displayName: "Component IDs to package + scan (comma-separated)"
+  - name: packageName
+    type: string
+    displayName: "Package Name"
+  - name: notes
+    type: string
+    default: "Build-Scan-Deploy"
+    displayName: "Deployment Notes"
+
+  # ---- scan controls ----
+  - name: scanReferences
+    type: boolean
+    default: true
+    displayName: "Scan referenced components + sub-processes (recursively)"
+  - name: referenceSource
+    type: string
+    default: "both"
+    values: ["xml", "api", "both"]
+    displayName: "Reference discovery source"
+  - name: maxComponents
+    type: number
+    default: 300
+    displayName: "Max components to discover (safety cap)"
+  - name: semgrepFailOn
+    type: string
+    default: "error"
+    values: ["none", "warning", "error"]
+    displayName: "Fail the scan (block deploy) on Semgrep findings of this level"
+  - name: semgrepExtraConfig
+    type: string
+    default: ""
+    displayName: "Extra Semgrep registry packs (space-separated, optional)"
+
+  # ---- deploy controls ----
+  - name: deployToQA
+    type: boolean
+    default: true
+    displayName: "Deploy to QA Environment"
+  - name: deployToProd
+    type: boolean
+    default: false
+    displayName: "Deploy to Production Environment"
+  - name: branchName
+    type: string
+    default: ""
+    displayName: "Boomi Branch Name (for branch/merge feature)"
+
+variables:
+  - group: boomicicd     # authToken (secret), baseURL
+  - group: boomiruntime  # *_apim_envname / *_apim_atom
+  - group: boomi-sonar   # sonarHostURL, sonarToken (secret), sonarProjectKey
+  - name: SCRIPTS_HOME
+    value: $(Build.SourcesDirectory)/cli/scripts
+  - name: WORKSPACE
+    value: $(Build.SourcesDirectory)/workspace
+  - name: h1
+    value: "Content-Type: application/json"
+  - name: h2
+    value: "Accept: application/json"
+  - name: VERBOSE
+    # Keep "false": common.sh poll_api_call runs `curl -v` when VERBOSE=true, which prints
+    # the Authorization header (Boomi credential) into the build log. Flip only to debug.
+    value: "false"
+  - name: SLEEP_TIMER
+    value: "0.2"
+  - name: packageVersion
+    ${{ if eq(parameters.packageVersion, '0') }}:
+      value: ${{ parameters.packageName }}.$(Build.BuildNumber).BUILD
+    ${{ if ne(parameters.packageVersion, '0') }}:
+      value: ${{ parameters.packageVersion }}
+
+stages:
+  ###########################
+  #  BUILD STAGE (ONCE)     #
+  ###########################
+  - stage: Build_Package
+    displayName: "📦 Build Package (Once)"
+    jobs:
+      - job: create_package
+        displayName: "Create Boomi Package"
+        steps:
+          - template: create_packages.yaml
+            parameters:
+              h1: $(h1)
+              h2: $(h2)
+              baseURL: $(baseURL)
+              authToken: $(authToken)
+              VERBOSE: $(VERBOSE)
+              SLEEP_TIMER: $(SLEEP_TIMER)
+              WORKSPACE: $(WORKSPACE)
+              SCRIPTS_HOME: $(SCRIPTS_HOME)
+              componentIds: "${{ parameters.componentIds }}"
+              packageVersion: $(packageVersion)
+              notes: ${{ parameters.notes }}
+              branchName: ${{ parameters.branchName }}
+
+  ###########################
+  #  SAST SCAN (GATE)       #
+  ###########################
+  - stage: SAST_Scan
+    displayName: "🔎 SAST Scan (Semgrep + SonarQube)"
+    dependsOn: Build_Package
+    jobs:
+      - job: scan_components
+        displayName: "Scan component tree"
+        steps:
+          - template: scan_components.yaml
+            parameters:
+              h1: $(h1)
+              h2: $(h2)
+              baseURL: $(baseURL)
+              authToken: $(authToken)
+              VERBOSE: $(VERBOSE)
+              SLEEP_TIMER: $(SLEEP_TIMER)
+              WORKSPACE: $(WORKSPACE)
+              SCRIPTS_HOME: $(SCRIPTS_HOME)
+              componentIds: "${{ parameters.componentIds }}"
+              sonarHostURL: $(sonarHostURL)
+              sonarToken: $(sonarToken)
+              sonarProjectKey: $(sonarProjectKey)
+              scanReferences: ${{ parameters.scanReferences }}
+              referenceSource: ${{ parameters.referenceSource }}
+              maxComponents: ${{ parameters.maxComponents }}
+              semgrepFailOn: ${{ parameters.semgrepFailOn }}
+              semgrepExtraConfig: ${{ parameters.semgrepExtraConfig }}
+
+  ###########################
+  #   QA: Deploy Built Pkg  #
+  ###########################
+  - ${{ if eq(parameters['deployToQA'], 'true') }}:
+      - stage: QA_Deployment
+        displayName: "🔧 QA Deployment"
+        dependsOn: SAST_Scan
+        jobs:
+          - job: deploy_package
+            displayName: "Deploy to QA"
+            steps:
+              - template: deploy_packages_multi.yaml
+                parameters:
+                  h1: $(h1)
+                  h2: $(h2)
+                  baseURL: $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  packageVersion: $(packageVersion)
+                  componentIds: ${{ parameters.componentIds }}
+                  env: $(development_apim_envname)
+                  notes: "QA - ${{ parameters.notes }}"
+                  listenerStatus: "RUNNING"
+                  branchName: ${{ parameters.branchName }}
+
+  ###########################
+  #  PROD: Approval Gate    #
+  ###########################
+  - ${{ if eq(parameters['deployToProd'], 'true') }}:
+      - stage: Prod_Approval
+        displayName: "⏸️  Production Approval Gate"
+        dependsOn:
+          - SAST_Scan
+          - ${{ if eq(parameters['deployToQA'], 'true') }}:
+              - QA_Deployment
+        jobs:
+          - deployment: approve_prod
+            displayName: "Approve Production Deployment"
+            environment: Production # Requires manual approval in Azure DevOps
+            strategy:
+              runOnce:
+                deploy:
+                  steps:
+                    - script: |
+                        echo "✅ Production deployment approved"
+                        echo "⚠️  WARNING: This will deploy to PRODUCTION!"
+                      displayName: "Production Approval Confirmed"
+
+      ###########################
+      #  PROD: Deploy Built Pkg #
+      ###########################
+      - stage: Prod_Deployment
+        displayName: "🚀 Production Deployment"
+        dependsOn: Prod_Approval
+        jobs:
+          - job: deploy_package
+            displayName: "Deploy to Production"
+            steps:
+              - template: deploy_packages_multi.yaml
+                parameters:
+                  h1: $(h1)
+                  h2: $(h2)
+                  baseURL: $(baseURL)
+                  authToken: $(authToken)
+                  VERBOSE: $(VERBOSE)
+                  SLEEP_TIMER: $(SLEEP_TIMER)
+                  WORKSPACE: $(WORKSPACE)
+                  SCRIPTS_HOME: $(SCRIPTS_HOME)
+                  packageVersion: $(packageVersion)
+                  componentIds: ${{ parameters.componentIds }}
+                  env: $(production_apim_envname)
+                  notes: "PRODUCTION - ${{ parameters.notes }}"
+                  branchName: ${{ parameters.branchName }}

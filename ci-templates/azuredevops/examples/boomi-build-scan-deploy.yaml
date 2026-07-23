@@ -1,0 +1,71 @@
+#############################################
+# Example: Build → Scan → Deploy (QA, Prod) #
+#############################################
+#
+# Concrete pipeline that EXTENDS the base_build_scan_deploy.yaml template.
+# Give it the entry component ID(s) at queue time; the scan stage expands each into its
+# full dependency tree (sub-processes, referenced script components, profiles, connectors)
+# and gates the QA/Prod deploys on the Semgrep result.
+#
+# Prereqs (Pipelines → Library variable groups):
+#   boomicicd    -> authToken (secret), baseURL
+#   boomiruntime -> development_apim_envname (QA), production_apim_envname (Prod)
+#   boomi-sonar  -> sonarHostURL, sonarToken (secret), sonarProjectKey
+# Prod approval: create a "Production" Environment in Azure DevOps with required approvers.
+#
+
+parameters:
+  - name: componentIds
+    displayName: "Entry Component ID(s) — comma-separated"
+    type: string
+    default: "112240d9-19dc-4033-8516-0c893e4cc31c"
+  - name: packageVersion
+    displayName: "Package Version (0 = auto from build number)"
+    type: string
+    default: "0"
+  - name: scanReferences
+    displayName: "Scan referenced components + sub-processes (recursively)"
+    type: boolean
+    default: true
+  - name: semgrepFailOn
+    displayName: "Fail scan / block deploy on Semgrep findings of this level"
+    type: string
+    default: "error"
+    values: ["none", "warning", "error"]
+  - name: deployToQA
+    displayName: "Deploy to QA"
+    type: boolean
+    default: true
+  - name: deployToProd
+    displayName: "Deploy to Production (requires approval)"
+    type: boolean
+    default: false
+  - name: notes
+    displayName: "Deployment Notes"
+    type: string
+    default: "Build-Scan-Deploy demo"
+  - name: branchName
+    displayName: "Boomi Branch Name (optional)"
+    type: string
+    default: "main"
+
+trigger: none   # run on demand
+
+pool:
+  name: Default
+  demands:
+    - agent.os -equals Linux
+
+extends:
+  template: /ci-templates/azuredevops/pipelines/base_build_scan_deploy.yaml
+  parameters:
+    packageName: "boomi-scan-demo"
+    packageVersion: ${{ parameters.packageVersion }}
+    componentIds: ${{ parameters.componentIds }}
+    notes: ${{ parameters.notes }}
+    scanReferences: ${{ parameters.scanReferences }}
+    referenceSource: "both"
+    semgrepFailOn: ${{ parameters.semgrepFailOn }}
+    deployToQA: ${{ parameters.deployToQA }}
+    deployToProd: ${{ parameters.deployToProd }}
+    branchName: ${{ parameters.branchName }}

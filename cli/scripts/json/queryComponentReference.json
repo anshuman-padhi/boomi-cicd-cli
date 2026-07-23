@@ -1,0 +1,21 @@
+{
+  "QueryFilter" :
+    {
+      "expression" :
+        {
+          "operator" : "and",
+          "nestedExpression": [
+            {
+              "argument":["${componentId}"],
+              "operator":"EQUALS",
+              "property":"parentComponentId"
+            },
+            {
+              "argument":["${parentVersion}"],
+              "operator":"EQUALS",
+              "property":"parentVersion"
+            }
+          ]
+        }
+    }
+}
