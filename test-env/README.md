@@ -181,6 +181,68 @@ The agent reaches SonarQube over the internal network at `http://boomi-sonarqube
   into the image so agent registration validates. If registration still fails with a TLS error,
   re‑export the CA into `test-env/agent/certs/` and rebuild.
 
+## Inspecting the containers
+
+> Runtime here is **podman**; on a Linux/Docker VM the commands are **identical — just
+> replace `podman` with `docker`**. There is **no separate Semgrep container**: Semgrep,
+> sonar‑scanner, the Boomi CLI, the checked‑out repo, and the scan artifacts all live
+> inside the **agent** container (`boomi-azdo-agent`).
+
+```bash
+podman ps        # boomi-sonarqube, boomi-sonar-db, boomi-azdo-agent
+```
+
+**Agent — Semgrep, scan scripts, and artifacts.** The repo is checked out under
+`/azp/_work/<n>/s` (`<n>` varies per pipeline; the snippets resolve the most recent):
+
+```bash
+podman exec -it boomi-azdo-agent bash                          # open a shell
+podman exec boomi-azdo-agent semgrep --version                 # /usr/local/bin/semgrep
+podman exec boomi-azdo-agent bash -lc 'ls -dt /azp/_work/*/s'   # find the checkout
+
+# Semgrep ruleset + the scan scripts
+podman exec boomi-azdo-agent bash -lc 'REPO=$(ls -dt /azp/_work/*/s|head -1); cat "$REPO/test-env/semgrep/boomi-scripts.yml"'
+podman exec boomi-azdo-agent bash -lc 'REPO=$(ls -dt /azp/_work/*/s|head -1); ls -l \
+  "$REPO/ci-templates/azuredevops/pipelines/sonar_scan_boomi.sh" \
+  "$REPO/ci-templates/azuredevops/pipelines/extract_scripts.sh" \
+  "$REPO/cli/scripts/bin/getComponentTree.sh"'
+
+# the last run's artifacts: staged component XML, extracted scripts, and the Semgrep SARIF
+podman exec boomi-azdo-agent bash -lc 'REPO=$(ls -dt /azp/_work/*/s|head -1); ls -R "$REPO/workspace/boomi-scan"'
+
+# re-run Semgrep by hand against the extracted scripts (see findings live)
+podman exec -it boomi-azdo-agent bash -lc 'REPO=$(ls -dt /azp/_work/*/s|head -1);
+  cd "$REPO/workspace/boomi-scan"; semgrep scan --config "$REPO/test-env/semgrep/boomi-scripts.yml" --no-git-ignore scripts'
+```
+
+**SonarQube:**
+
+```bash
+podman exec -it boomi-sonarqube bash
+podman exec boomi-sonarqube cat /opt/sonarqube/conf/sonar.properties
+podman exec boomi-sonarqube tail -n 100 /opt/sonarqube/logs/ce.log    # Compute Engine: analysis + SARIF import
+podman exec boomi-sonarqube ls /opt/sonarqube/extensions/plugins       # xml / javascript / text analyzers
+```
+
+The **Boomi XPath rules are not files** in this container — they live in the Postgres DB
+(`boomi-sonar-db`). View them in the UI (**Quality Profiles → Boomi**), via
+`GET /api/qualityprofiles/backup`, or from the source `test-env/sonarqube/boomi-quality-profile.xml`.
+
+**Copy a file out of a container to the host:**
+
+```bash
+podman cp boomi-azdo-agent:/azp/_work/1/s/workspace/boomi-scan/semgrep.sarif ./semgrep.sarif
+```
+
+> **What is SARIF?** *Static Analysis Results Interchange Format* — an OASIS‑standard JSON
+> format for reporting static‑analysis findings (rule id, message, severity, file + line,
+> data‑flow). Semgrep writes its results to `semgrep.sarif`; the scan then hands that file
+> to SonarQube via `-Dsonar.sarifReportPaths`, so Semgrep's findings appear in the SonarQube
+> dashboard (at file:line) alongside the native XPath issues. Being a standard, the same
+> SARIF can be consumed by GitHub code‑scanning, VS Code, Azure DevOps, etc.
+
+---
+
 ## Troubleshooting
 | Symptom | Fix |
 |---|---|
